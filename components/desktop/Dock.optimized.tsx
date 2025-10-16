@@ -1,171 +1,164 @@
 /**
- * Dock Component (Optimized) - 优化的 Dock 组件
+ * Dock Component (Optimized) - 优化版 Dock 组件
  * 
- * 优化点：
- * 1. 使用 memo 避免不必要的重渲染
- * 2. 使用 useMemo 缓存计算结果
- * 3. 拆分子组件减小渲染范围
- * 4. 使用 Set 优化查找性能
+ * 此文件用于演示优化版本，可以通过动态导入按需加载
  */
 'use client'
 
-import { memo, useMemo, useCallback } from 'react'
-import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion'
-import { Grid3x3, Plus } from 'lucide-react'
+import { memo, useMemo, useRef, useCallback } from 'react'
+import { motion, useMotionValue, useSpring, useTransform, MotionValue } from 'framer-motion'
 import { Application } from '@/types'
-import { useDesktopStore } from '@/stores/desktop-store'
 
 interface DockProps {
   applications: Application[]
-  maxItems?: number
+  onAppClick: (app: Application) => void
+  activeApps?: string[]
+  onLaunchpadClick?: () => void
 }
 
-/**
- * 单个 Dock 图标组件
- */
 interface DockItemProps {
   app: Application
-  isActive: boolean
+  mouseX: MotionValue<number>
   onClick: () => void
+  isActive?: boolean
 }
 
-const DockItem = memo(function DockItem({ app, isActive, onClick }: DockItemProps) {
-  const mouseX = useMotionValue(0)
-  const distance = useTransform(mouseX, [-150, 0, 150], [50, 80, 50])
-  const width = useSpring(distance, { mass: 0.1, stiffness: 150, damping: 12 })
-  
+// 记忆化 Dock 项组件，避免不必要的重渲染
+const DockItem = memo(({ app, mouseX, onClick, isActive }: DockItemProps) => {
+  const ref = useRef<HTMLDivElement>(null)
+
+  // 使用 transform 计算鼠标距离
+  const distance = useTransform(mouseX, (val) => {
+    const bounds = ref.current?.getBoundingClientRect() ?? { x: 0, width: 0 }
+    return val - bounds.x - bounds.width / 2
+  })
+
+  // 使用 spring 动画使图标缩放更平滑
+  const widthSync = useTransform(distance, [-150, 0, 150], [50, 80, 50])
+  const width = useSpring(widthSync, { 
+    mass: 0.1, 
+    stiffness: 150, 
+    damping: 12 
+  })
+
   return (
-    <motion.button
-      className="group relative flex flex-col items-center justify-center"
+    <motion.div
+      ref={ref}
       style={{ width }}
-      onClick={onClick}
-      whileHover={{ scale: 1.1 }}
-      whileTap={{ scale: 0.95 }}
-      aria-label={`打开 ${app.name}`}
-      title={app.name}
+      className="relative flex flex-col items-center"
     >
-      {/* 应用图标 */}
-      <div className="text-4xl mb-1 transition-transform group-hover:scale-110">
-        {app.icon}
-      </div>
-      
-      {/* 应用名称（hover 显示） */}
-      <div className="absolute -top-12 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-        <div className="px-3 py-1 bg-gray-900/90 dark:bg-gray-100/90 text-white dark:text-black text-xs rounded-md whitespace-nowrap">
-          {app.name}
+      <motion.button
+        onClick={onClick}
+        title={app.name}
+        aria-label={`打开 ${app.name}`}
+        className="group relative flex aspect-square w-full items-center justify-center rounded-2xl bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl shadow-lg transition-all hover:shadow-xl"
+        whileHover={{ y: -8 }}
+        whileTap={{ scale: 0.95 }}
+      >
+        {/* 应用图标 */}
+        <span className="text-3xl" aria-hidden="true">{app.icon}</span>
+        
+        {/* 活动指示器 */}
+        {isActive && (
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            className="absolute -bottom-1 h-1 w-1 rounded-full bg-white/80"
+            aria-label="应用正在运行"
+          />
+        )}
+
+        {/* 悬停工具提示 */}
+        <div className="pointer-events-none absolute -bottom-16 left-1/2 -translate-x-1/2 z-50 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+          <div className="relative">
+            <div className="whitespace-nowrap rounded-md bg-gray-900/95 px-3 py-1.5 text-xs font-medium text-white shadow-xl backdrop-blur-sm">
+              {app.name}
+            </div>
+            <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-900/95 rotate-45" />
+          </div>
         </div>
-      </div>
-      
-      {/* 活动指示器 */}
-      {isActive && (
-        <motion.div
-          className="absolute -bottom-1 h-1 w-1 rounded-full bg-white dark:bg-gray-800"
-          layoutId={`active-${app.id}`}
-          initial={{ opacity: 0, scale: 0 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0 }}
-        />
-      )}
-    </motion.button>
+      </motion.button>
+    </motion.div>
   )
 })
 
-/**
- * Launchpad 按钮组件
- */
-const LaunchpadButton = memo(function LaunchpadButton({ 
-  onClick 
-}: { 
-  onClick: () => void 
-}) {
-  return (
-    <motion.button
-      className="flex items-center justify-center w-14 h-14 rounded-xl bg-white/10 hover:bg-white/20 dark:bg-gray-800/30 dark:hover:bg-gray-700/40 backdrop-blur-sm transition-colors"
-      onClick={onClick}
-      whileHover={{ scale: 1.1 }}
-      whileTap={{ scale: 0.95 }}
-      aria-label="打开启动台"
-      title="启动台"
-    >
-      <Grid3x3 className="h-6 w-6 text-white" />
-    </motion.button>
-  )
-})
+DockItem.displayName = 'DockItem'
 
-/**
- * 分隔线组件
- */
-const DockDivider = memo(function DockDivider() {
-  return (
-    <div className="w-px h-12 bg-white/20 dark:bg-gray-600/40 mx-2" 
-         aria-hidden="true" 
-    />
-  )
-})
+// 记忆化 Dock 组件
+export const Dock = memo(({ applications, onAppClick, activeApps = [], onLaunchpadClick }: DockProps) => {
+  const mouseX = useMotionValue(Infinity)
 
-/**
- * Dock 主组件（优化版）
- */
-export const Dock = memo(function Dock({ 
-  applications, 
-  maxItems = 8 
-}: DockProps) {
-  const { getActiveApps, openApp, toggleLaunchpad } = useDesktopStore()
-  const activeApps = getActiveApps()
-  
-  // 使用 useMemo 缓存过滤和排序的应用列表
-  const dockApps = useMemo(() => 
+  // 使用 useMemo 缓存过滤和排序后的应用
+  const sortedApps = useMemo(() => 
     applications
       .filter(app => app.status === 'active')
-      .sort((a, b) => a.order - b.order)
-      .slice(0, maxItems),
-    [applications, maxItems]
+      .sort((a, b) => (a.order || 0) - (b.order || 0)),
+    [applications]
   )
-  
+
   // 使用 Set 优化活动应用查找性能
-  const activeAppSet = useMemo(() => 
-    new Set(activeApps), 
-    [activeApps]
-  )
-  
-  // 使用 useCallback 缓存事件处理器
+  const activeAppSet = useMemo(() => new Set(activeApps), [activeApps])
+
+  // 使用 useCallback 优化事件处理器
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    mouseX.set(e.pageX)
+  }, [mouseX])
+
+  const handleMouseLeave = useCallback(() => {
+    mouseX.set(Infinity)
+  }, [mouseX])
+
   const handleAppClick = useCallback((app: Application) => {
-    openApp(app)
-  }, [openApp])
-  
-  const handleLaunchpadClick = useCallback(() => {
-    toggleLaunchpad()
-  }, [toggleLaunchpad])
-  
+    onAppClick(app)
+  }, [onAppClick])
+
   return (
-    <nav
-      role="navigation"
-      aria-label="应用程序 Dock"
-      className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50"
-    >
+    <div className="fixed bottom-4 left-0 right-0 z-50 flex justify-center pointer-events-none">
       <motion.div
-        className="flex items-end gap-2 px-4 py-3 rounded-2xl bg-white/10 dark:bg-gray-900/20 backdrop-blur-2xl border border-white/20 dark:border-gray-700/30 shadow-2xl"
         initial={{ y: 100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+        className="pointer-events-auto"
       >
-        {/* 应用图标列表 */}
-        {dockApps.map((app) => (
+        <nav
+          role="navigation"
+          aria-label="应用程序 Dock"
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
+          className="flex items-end gap-2 rounded-2xl border border-white/20 bg-white/10 p-3 backdrop-blur-2xl shadow-2xl"
+        >
+          {sortedApps.map((app) => (
+            <DockItem
+              key={app.id}
+              app={app}
+              mouseX={mouseX}
+              onClick={() => handleAppClick(app)}
+              isActive={activeAppSet.has(app.id)}
+            />
+          ))}
+        
+          {/* 分隔线 */}
+          <div className="mx-1 h-12 w-px bg-white/20" role="separator" />
+        
+          {/* Launchpad 图标 */}
           <DockItem
-            key={app.id}
-            app={app}
-            isActive={activeAppSet.has(app.id)}
-            onClick={() => handleAppClick(app)}
+            app={{
+              id: 'launchpad',
+              name: 'Launchpad',
+              icon: '🚀',
+              description: '查看所有应用',
+              url: '',
+              category: 'system',
+              roles: [],
+              status: 'active',
+              order: 999
+            }}
+            mouseX={mouseX}
+            onClick={() => onLaunchpadClick?.()}
           />
-        ))}
-        
-        {/* 分隔线 */}
-        {dockApps.length > 0 && <DockDivider />}
-        
-        {/* Launchpad 按钮 */}
-        <LaunchpadButton onClick={handleLaunchpadClick} />
+        </nav>
       </motion.div>
-    </nav>
+    </div>
   )
 })
 
+Dock.displayName = 'Dock'

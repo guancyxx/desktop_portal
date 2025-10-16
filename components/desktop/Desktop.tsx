@@ -1,5 +1,6 @@
 'use client'
 
+import { useCallback } from 'react'
 import { Application } from '@/types'
 import { MenuBar } from './MenuBar'
 import { Dock } from './Dock'
@@ -7,6 +8,7 @@ import { Launchpad } from './Launchpad'
 import { Window } from './Window'
 import { Wallpaper } from './Wallpaper'
 import { useDesktop } from '@/hooks/use-desktop'
+import { useDesktopShortcuts } from '@/hooks/use-keyboard-shortcuts'
 
 interface DesktopProps {
   applications: Application[]
@@ -24,6 +26,41 @@ export function Desktop({ applications, wallpaper }: DesktopProps) {
     toggleLaunchpad,
     setIsLaunchpadOpen
   } = useDesktop()
+
+  // 获取顶层窗口（最前面的窗口）
+  const getTopWindow = useCallback(() => {
+    return windows
+      .filter(w => !w.isMinimized)
+      .sort((a, b) => b.zIndex - a.zIndex)[0]
+  }, [windows])
+
+  // 键盘快捷键处理器
+  const handleWindowClose = useCallback(() => {
+    const topWindow = getTopWindow()
+    if (topWindow) {
+      closeWindow(topWindow.id)
+    }
+  }, [getTopWindow, closeWindow])
+
+  const handleWindowMinimize = useCallback(() => {
+    const topWindow = getTopWindow()
+    if (topWindow) {
+      minimizeWindow(topWindow.id)
+    }
+  }, [getTopWindow, minimizeWindow])
+
+  // 注册桌面快捷键
+  useDesktopShortcuts({
+    onLaunchpadToggle: () => {
+      if (isLaunchpadOpen) {
+        setIsLaunchpadOpen(false)
+      } else {
+        toggleLaunchpad()
+      }
+    },
+    onWindowClose: handleWindowClose,
+    onWindowMinimize: handleWindowMinimize,
+  })
 
   const handleAppClick = (app: Application) => {
     const isExternalUrl = app.url && (app.url.startsWith('http://') || app.url.startsWith('https://'))

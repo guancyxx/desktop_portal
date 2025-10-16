@@ -46,17 +46,46 @@ http://localhost:3000
 
 ## 📚 文档
 
-- [完整功能文档](./DESKTOP-FEATURES-COMPLETE.md)
-- [用户使用指南](../README-DESKTOP.md)
-- [归档文档](./archive/) - 历史文档和开发记录
+### 当前文档
+- [完整功能文档](./DESKTOP-FEATURES-COMPLETE.md) - 桌面功能详细说明
+- [用户使用指南](../README-DESKTOP.md) - 用户操作指南
+- [优化快速指南](./OPTIMIZATION_QUICK_GUIDE.md) - 优化功能使用指南 ⭐
+- [DDD 架构指南](./DDD_ARCHITECTURE_GUIDE.md) - 领域驱动设计说明 ⭐
+- [Docker 优化指南](./DOCKER_OPTIMIZATION_GUIDE.md) - Docker 配置优化
+
+### 归档文档
+- [优化文档归档](./archive/optimization/) - 代码优化完成文档 📦
+- [历史文档](./archive/) - 其他历史文档和开发记录
+
+> **提示**: ⭐ 标记的文档为最新优化成果，建议开发者优先阅读
 
 ## 🔧 技术栈
 
-- Next.js 14 (App Router)
-- React 18 + TypeScript
-- Framer Motion (动画)
-- Tailwind CSS (样式)
-- NextAuth + Keycloak (认证)
+### 核心框架
+- **Next.js 14** - App Router
+- **React 18** - UI 框架
+- **TypeScript** - 严格模式
+
+### 状态和数据管理
+- **Zustand** - 状态管理 🆕
+- **TanStack Query** - 数据获取和缓存 🆕
+- **Immer** - 不可变状态更新 🆕
+
+### UI 和样式
+- **Framer Motion** - 动画
+- **Tailwind CSS** - 样式
+- **Radix UI** - 无障碍组件
+
+### 认证和安全
+- **NextAuth** - 身份认证
+- **Keycloak** - SSO 集成
+- **DOMPurify** - XSS 防护 🆕
+
+### 开发工具
+- **React Query DevTools** - 数据调试 🆕
+- **Zustand DevTools** - 状态调试 🆕
+
+> **提示**: 🆕 标记为本次优化新增的技术栈
 
 ## 🐳 Docker 部署
 

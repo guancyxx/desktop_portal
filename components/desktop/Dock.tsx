@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useRef } from 'react'
-import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion'
+import { memo, useMemo, useRef, useCallback } from 'react'
+import { motion, useMotionValue, useSpring, useTransform, MotionValue } from 'framer-motion'
 import { Application } from '@/types'
 
 interface DockProps {
@@ -13,12 +13,13 @@ interface DockProps {
 
 interface DockItemProps {
   app: Application
-  mouseX: any
+  mouseX: MotionValue<number>
   onClick: () => void
   isActive?: boolean
 }
 
-function DockItem({ app, mouseX, onClick, isActive }: DockItemProps) {
+// 记忆化 Dock 项组件
+const DockItem = memo(({ app, mouseX, onClick, isActive }: DockItemProps) => {
   const ref = useRef<HTMLDivElement>(null)
 
   const distance = useTransform(mouseX, (val) => {
@@ -70,10 +71,37 @@ function DockItem({ app, mouseX, onClick, isActive }: DockItemProps) {
       </motion.button>
     </motion.div>
   )
-}
+})
 
-export function Dock({ applications, onAppClick, activeApps = [], onLaunchpadClick }: DockProps) {
+DockItem.displayName = 'DockItem'
+
+// 记忆化 Dock 组件
+export const Dock = memo(({ applications, onAppClick, activeApps = [], onLaunchpadClick }: DockProps) => {
   const mouseX = useMotionValue(Infinity)
+
+  // 使用 useMemo 缓存过滤和排序后的应用
+  const sortedApps = useMemo(() => 
+    applications
+      .filter(app => app.status === 'active')
+      .sort((a, b) => (a.order || 0) - (b.order || 0)),
+    [applications]
+  )
+
+  // 使用 Set 优化活动应用查找性能
+  const activeAppSet = useMemo(() => new Set(activeApps), [activeApps])
+
+  // 使用 useCallback 优化事件处理器
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    mouseX.set(e.pageX)
+  }, [mouseX])
+
+  const handleMouseLeave = useCallback(() => {
+    mouseX.set(Infinity)
+  }, [mouseX])
+
+  const handleAppClick = useCallback((app: Application) => {
+    onAppClick(app)
+  }, [onAppClick])
 
   return (
     <div className="fixed bottom-4 left-0 right-0 z-50 flex justify-center pointer-events-none">
@@ -83,20 +111,17 @@ export function Dock({ applications, onAppClick, activeApps = [], onLaunchpadCli
         className="pointer-events-auto"
       >
         <div
-          onMouseMove={(e) => mouseX.set(e.pageX)}
-          onMouseLeave={() => mouseX.set(Infinity)}
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
           className="flex items-end gap-2 rounded-2xl border border-white/20 bg-white/10 p-3 backdrop-blur-2xl shadow-2xl"
         >
-        {applications
-          .filter(app => app.status === 'active')
-          .sort((a, b) => (a.order || 0) - (b.order || 0))
-          .map((app) => (
+        {sortedApps.map((app) => (
             <DockItem
               key={app.id}
               app={app}
               mouseX={mouseX}
-              onClick={() => onAppClick(app)}
-              isActive={activeApps.includes(app.id)}
+              onClick={() => handleAppClick(app)}
+              isActive={activeAppSet.has(app.id)}
             />
           ))}
         
@@ -123,5 +148,7 @@ export function Dock({ applications, onAppClick, activeApps = [], onLaunchpadCli
       </motion.div>
     </div>
   )
-}
+})
+
+Dock.displayName = 'Dock'
 
