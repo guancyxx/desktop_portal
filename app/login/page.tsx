@@ -12,7 +12,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (status === 'authenticated') {
-      router.push('/portal')
+      router.push('/desktop')
     }
   }, [status, router])
 
@@ -40,7 +40,7 @@ export default function LoginPage() {
         <CardContent className="space-y-4">
           <Button
             className="w-full h-12 text-base"
-            onClick={() => signIn('keycloak', { callbackUrl: '/portal' })}
+            onClick={() => signIn('keycloak', { callbackUrl: '/desktop' })}
           >
             <span className="mr-2">🔐</span>
             Sign in with Keycloak

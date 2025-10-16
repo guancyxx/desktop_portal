@@ -37,7 +37,9 @@ function DockItem({ app, mouseX, onClick, isActive }: DockItemProps) {
     >
       <motion.button
         onClick={onClick}
-        className="relative flex aspect-square w-full items-center justify-center rounded-2xl bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl shadow-lg transition-all hover:shadow-xl"
+        title={app.name}
+        aria-label={app.name}
+        className="group relative flex aspect-square w-full items-center justify-center rounded-2xl bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl shadow-lg transition-all hover:shadow-xl"
         whileHover={{ y: -8 }}
         whileTap={{ scale: 0.95 }}
       >
@@ -54,13 +56,11 @@ function DockItem({ app, mouseX, onClick, isActive }: DockItemProps) {
         )}
 
         {/* 悬停工具提示 */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          whileHover={{ opacity: 1, y: 0 }}
-          className="pointer-events-none absolute -top-12 whitespace-nowrap rounded-lg bg-black/75 px-3 py-1.5 text-xs text-white backdrop-blur-sm"
+        <div
+          className="pointer-events-none absolute -top-14 z-50 whitespace-nowrap rounded-lg bg-black/80 px-3 py-1.5 text-xs text-white shadow-lg backdrop-blur-sm opacity-0 translate-y-2 transition-all duration-150 group-hover:opacity-100 group-hover:translate-y-0"
         >
           {app.name}
-        </motion.div>
+        </div>
       </motion.button>
     </motion.div>
   )
