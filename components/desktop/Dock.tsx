@@ -70,16 +70,17 @@ export function Dock({ applications, onAppClick, activeApps = [], onLaunchpadCli
   const mouseX = useMotionValue(Infinity)
 
   return (
-    <motion.div
-      initial={{ y: 100, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2"
-    >
-      <div
-        onMouseMove={(e) => mouseX.set(e.pageX)}
-        onMouseLeave={() => mouseX.set(Infinity)}
-        className="flex items-end gap-2 rounded-2xl border border-white/20 bg-white/10 p-3 backdrop-blur-2xl shadow-2xl"
+    <div className="fixed bottom-4 left-0 right-0 z-50 flex justify-center pointer-events-none">
+      <motion.div
+        initial={{ y: 100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="pointer-events-auto"
       >
+        <div
+          onMouseMove={(e) => mouseX.set(e.pageX)}
+          onMouseLeave={() => mouseX.set(Infinity)}
+          className="flex items-end gap-2 rounded-2xl border border-white/20 bg-white/10 p-3 backdrop-blur-2xl shadow-2xl"
+        >
         {applications
           .filter(app => app.status === 'active')
           .sort((a, b) => (a.order || 0) - (b.order || 0))
@@ -112,8 +113,9 @@ export function Dock({ applications, onAppClick, activeApps = [], onLaunchpadCli
           mouseX={mouseX}
           onClick={() => onLaunchpadClick?.()}
         />
-      </div>
-    </motion.div>
+        </div>
+      </motion.div>
+    </div>
   )
 }
 

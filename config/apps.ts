@@ -62,6 +62,18 @@ export const applications: Application[] = [
     order: 5,
   },
   {
+    id: 'help',
+    name: 'Help',
+    description: 'Help center and system information',
+    icon: '❓',
+    url: '/help',
+    category: 'tools',
+    roles: ['user', 'admin'],
+    status: 'active',
+    color: '#c3cfe2',
+    order: 6,
+  },
+  {
     id: 'dev-tools',
     name: 'Developer Tools',
     description: 'API documentation and developer resources',
@@ -71,7 +83,7 @@ export const applications: Application[] = [
     roles: ['admin'],
     status: 'active',
     color: '#fed6e3',
-    order: 6,
+    order: 7,
   },
 ]
 

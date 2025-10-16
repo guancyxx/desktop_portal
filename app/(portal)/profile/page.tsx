@@ -18,17 +18,17 @@ export default async function ProfilePage() {
   }
 
   return (
-    <div className="container max-w-4xl space-y-6 py-8">
+    <div className="container max-w-4xl space-y-6 py-8 pb-32">
       <div>
-        <h1 className="text-3xl font-bold">Profile</h1>
-        <p className="text-muted-foreground">Manage your account information and preferences</p>
+        <h1 className="text-3xl font-bold text-white">Profile</h1>
+        <p className="text-white/60">Manage your account information and preferences</p>
       </div>
 
       {/* Profile Overview */}
-      <Card>
+      <Card className="bg-white/10 border-white/20 backdrop-blur-xl">
         <CardHeader>
-          <CardTitle>Personal Information</CardTitle>
-          <CardDescription>Your basic account details</CardDescription>
+          <CardTitle className="text-white">Personal Information</CardTitle>
+          <CardDescription className="text-white/60">Your basic account details</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="flex items-center gap-6">
@@ -39,21 +39,21 @@ export default async function ProfilePage() {
               </AvatarFallback>
             </Avatar>
             <div>
-              <h3 className="text-2xl font-semibold">{session.user.name}</h3>
-              <p className="text-muted-foreground">{session.user.email}</p>
+              <h3 className="text-2xl font-semibold text-white">{session.user.name}</h3>
+              <p className="text-white/60">{session.user.email}</p>
             </div>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Username</label>
-              <p className="text-sm text-muted-foreground">
+              <label className="text-sm font-medium text-white">Username</label>
+              <p className="text-sm text-white/60">
                 {session.user.name || 'Not set'}
               </p>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Email</label>
-              <p className="text-sm text-muted-foreground">
+              <label className="text-sm font-medium text-white">Email</label>
+              <p className="text-sm text-white/60">
                 {session.user.email || 'Not set'}
               </p>
             </div>
@@ -62,10 +62,10 @@ export default async function ProfilePage() {
       </Card>
 
       {/* Roles & Permissions */}
-      <Card>
+      <Card className="bg-white/10 border-white/20 backdrop-blur-xl">
         <CardHeader>
-          <CardTitle>Roles & Permissions</CardTitle>
-          <CardDescription>Your assigned roles in the system</CardDescription>
+          <CardTitle className="text-white">Roles & Permissions</CardTitle>
+          <CardDescription className="text-white/60">Your assigned roles in the system</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
@@ -76,23 +76,23 @@ export default async function ProfilePage() {
                 </Badge>
               ))
             ) : (
-              <p className="text-sm text-muted-foreground">No roles assigned</p>
+              <p className="text-sm text-white/60">No roles assigned</p>
             )}
           </div>
         </CardContent>
       </Card>
 
       {/* Account Security */}
-      <Card>
+      <Card className="bg-white/10 border-white/20 backdrop-blur-xl">
         <CardHeader>
-          <CardTitle>Account Security</CardTitle>
-          <CardDescription>Manage your security settings</CardDescription>
+          <CardTitle className="text-white">Account Security</CardTitle>
+          <CardDescription className="text-white/60">Manage your security settings</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between rounded-lg border p-4">
+          <div className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 p-4">
             <div>
-              <h4 className="font-medium">Password</h4>
-              <p className="text-sm text-muted-foreground">
+              <h4 className="font-medium text-white">Password</h4>
+              <p className="text-sm text-white/60">
                 Last changed: Managed by Keycloak
               </p>
             </div>
@@ -100,16 +100,16 @@ export default async function ProfilePage() {
               href={`${process.env.NEXT_PUBLIC_KEYCLOAK_URL || 'http://localhost:8080'}/realms/Dreambuilder/account`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm font-medium text-primary hover:underline"
+              className="text-sm font-medium text-blue-400 hover:underline"
             >
               Manage in Keycloak
             </a>
           </div>
 
-          <div className="flex items-center justify-between rounded-lg border p-4">
+          <div className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 p-4">
             <div>
-              <h4 className="font-medium">Two-Factor Authentication</h4>
-              <p className="text-sm text-muted-foreground">
+              <h4 className="font-medium text-white">Two-Factor Authentication</h4>
+              <p className="text-sm text-white/60">
                 Add an extra layer of security
               </p>
             </div>
@@ -117,7 +117,7 @@ export default async function ProfilePage() {
               href={`${process.env.NEXT_PUBLIC_KEYCLOAK_URL || 'http://localhost:8080'}/realms/Dreambuilder/account`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm font-medium text-primary hover:underline"
+              className="text-sm font-medium text-blue-400 hover:underline"
             >
               Configure
             </a>

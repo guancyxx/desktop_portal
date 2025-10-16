@@ -6,7 +6,6 @@ import { Dock } from './Dock'
 import { Launchpad } from './Launchpad'
 import { Window } from './Window'
 import { Wallpaper } from './Wallpaper'
-import { ViewSwitcher } from './ViewSwitcher'
 import { useDesktop } from '@/hooks/use-desktop'
 
 interface DesktopProps {
@@ -50,9 +49,6 @@ export function Desktop({ applications, wallpaper }: DesktopProps) {
 
       {/* 顶部菜单栏 */}
       <MenuBar />
-
-      {/* 视图切换器 */}
-      <ViewSwitcher currentView="desktop" />
 
       {/* 桌面区域 */}
       <div className="relative h-full w-full pt-8 pb-24">

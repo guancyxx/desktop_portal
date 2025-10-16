@@ -80,7 +80,7 @@ export function MenuBar() {
           <button className="hover:text-white transition-colors">文件</button>
           <button className="hover:text-white transition-colors">编辑</button>
           <button className="hover:text-white transition-colors">查看</button>
-          <button className="hover:text-white transition-colors">帮助</button>
+          <a href="/help" className="hover:text-white transition-colors">帮助</a>
         </div>
       </div>
 
