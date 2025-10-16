@@ -1,12 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { useSession, signOut } from 'next-auth/react'
 import { 
-  Wifi, 
-  Battery, 
-  Volume2, 
   Search,
   Moon,
   Sun,
@@ -16,12 +13,19 @@ import {
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 
-export function MenuBar() {
+interface MenuBarProps {
+  onOpenHelp?: () => void
+  onOpenSystem?: () => void
+  onOpenAbout?: () => void
+}
+
+export function MenuBar({ onOpenHelp, onOpenSystem, onOpenAbout }: MenuBarProps) {
   const { data: session } = useSession()
   const { theme, setTheme } = useTheme()
   const [currentTime, setCurrentTime] = useState(new Date())
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const userMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setMounted(true)
@@ -29,18 +33,31 @@ export function MenuBar() {
     return () => clearInterval(timer)
   }, [])
 
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('zh-CN', { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      hour12: false 
-    })
-  }
+  // 点击外部关闭用户菜单 / Esc 关闭
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (showUserMenu && userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setShowUserMenu(false)
+      }
+    }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowUserMenu(false)
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [showUserMenu])
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString('zh-CN', { 
-      month: 'short', 
-      day: 'numeric' 
+  const formatDateTime = (date: Date) => {
+    return date.toLocaleString('zh-CN', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
     })
   }
 
@@ -77,10 +94,12 @@ export function MenuBar() {
         </button>
         
         <div className="flex items-center gap-3 text-xs text-white/80">
-          <button className="hover:text-white transition-colors">文件</button>
-          <button className="hover:text-white transition-colors">编辑</button>
-          <button className="hover:text-white transition-colors">查看</button>
-          <a href="/help" className="hover:text-white transition-colors">帮助</a>
+          <button
+            onClick={() => onOpenHelp?.()}
+            className="hover:text-white transition-colors"
+          >
+            帮助
+          </button>
         </div>
       </div>
 
@@ -98,27 +117,10 @@ export function MenuBar() {
         >
           {theme === 'dark' ? <Moon size={14} /> : <Sun size={14} />}
         </button>
-
-        {/* 音量 */}
-        <button className="hover:text-white transition-colors">
-          <Volume2 size={14} />
-        </button>
-
-        {/* WiFi */}
-        <button className="hover:text-white transition-colors">
-          <Wifi size={14} />
-        </button>
-
-        {/* 电池 */}
-        <button className="hover:text-white transition-colors">
-          <Battery size={14} />
-        </button>
-
-        {/* 分隔线 */}
-        <div className="h-4 w-px bg-white/20" />
+        {/* 预留空间（移除音量/WiFi/电量，给日期更多空间） */}
 
         {/* 用户菜单 */}
-        <div className="relative">
+        <div className="relative" ref={userMenuRef}>
           <button
             onClick={() => setShowUserMenu(!showUserMenu)}
             className="flex items-center gap-2 hover:text-white transition-colors"
@@ -140,7 +142,7 @@ export function MenuBar() {
                 </p>
               </div>
               
-              <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-white/80 hover:bg-white/10">
+              <button onClick={() => onOpenSystem?.()} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-white/80 hover:bg-white/10">
                 <Settings size={14} />
                 <span>系统设置</span>
               </button>
@@ -152,14 +154,22 @@ export function MenuBar() {
                 <LogOut size={14} />
                 <span>退出登录</span>
               </button>
+
+              <div className="border-t border-white/10 mt-2 pt-2" />
+              <button
+                onClick={() => onOpenAbout?.()}
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-white/80 hover:bg-white/10"
+              >
+                <span className="text-base">ℹ️</span>
+                <span>关于</span>
+              </button>
             </motion.div>
           )}
         </div>
 
-        {/* 时间和日期 */}
-        <div className="flex flex-col items-end text-xs">
-          <span className="font-medium text-white">{formatDate(currentTime)}</span>
-          <span className="text-white/60">{formatTime(currentTime)}</span>
+        {/* 时间和日期（一行显示） */}
+        <div className="items-center text-xs font-medium text-white hidden sm:flex">
+          <span>{formatDateTime(currentTime)}</span>
         </div>
       </div>
     </motion.div>

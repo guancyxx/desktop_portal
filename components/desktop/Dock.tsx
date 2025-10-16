@@ -56,10 +56,16 @@ function DockItem({ app, mouseX, onClick, isActive }: DockItemProps) {
         )}
 
         {/* 悬停工具提示 */}
-        <div
-          className="pointer-events-none absolute -top-14 z-50 whitespace-nowrap rounded-lg bg-black/80 px-3 py-1.5 text-xs text-white shadow-lg backdrop-blur-sm opacity-0 translate-y-2 transition-all duration-150 group-hover:opacity-100 group-hover:translate-y-0"
-        >
-          {app.name}
+        <div className="pointer-events-none absolute -bottom-16 left-1/2 -translate-x-1/2 z-50 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+          {/* Tooltip内容 */}
+          <div className="relative">
+            {/* 主体 */}
+            <div className="whitespace-nowrap rounded-md bg-gray-900/95 px-3 py-1.5 text-xs font-medium text-white shadow-xl backdrop-blur-sm">
+              {app.name}
+            </div>
+            {/* 箭头 */}
+            <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-900/95 rotate-45" />
+          </div>
         </div>
       </motion.button>
     </motion.div>

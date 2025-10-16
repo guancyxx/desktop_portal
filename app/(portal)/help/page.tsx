@@ -2,16 +2,42 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 
 export const metadata = {
   title: 'Help',
-  description: 'Help and information about DreamBuilder Portal',
+  description: '系统使用与集成的文档总览',
 }
 
 export default function HelpPage() {
   return (
     <div className="container max-w-4xl space-y-6 py-8 pb-32">
       <div>
-        <h1 className="text-3xl font-bold text-white">帮助中心</h1>
-        <p className="text-white/60">了解如何使用 DreamBuilder Portal</p>
+        <h1 className="text-3xl font-bold text-white">帮助文档</h1>
+        <p className="text-white/60">系统使用与集成的文档总览</p>
       </div>
+
+      {/* 文档索引 */}
+      <Card className="bg-white/10 border-white/20 backdrop-blur-xl">
+        <CardHeader>
+          <CardTitle className="text-white">📚 文档索引</CardTitle>
+          <CardDescription className="text-white/60">按主题浏览关键文档</CardDescription>
+        </CardHeader>
+        <CardContent className="grid md:grid-cols-2 gap-4 text-white/80 text-sm">
+          <a href="/docs/user-guide" className="block rounded-lg bg-white/5 hover:bg-white/10 p-3 border border-white/10">
+            <div className="font-semibold text-white mb-1">用户指南</div>
+            <div className="text-white/60">面向终端用户的使用说明与常见问题</div>
+          </a>
+          <a href="/docs/setup" className="block rounded-lg bg-white/5 hover:bg-white/10 p-3 border border-white/10">
+            <div className="font-semibold text-white mb-1">安装与部署</div>
+            <div className="text-white/60">本地/容器部署、环境变量、网络与域名</div>
+          </a>
+          <a href="/docs/integration" className="block rounded-lg bg-white/5 hover:bg-white/10 p-3 border border-white/10">
+            <div className="font-semibold text-white mb-1">系统集成</div>
+            <div className="text-white/60">认证登录、单点集成、反向代理与网关</div>
+          </a>
+          <a href="/docs/admin" className="block rounded-lg bg-white/5 hover:bg-white/10 p-3 border border-white/10">
+            <div className="font-semibold text-white mb-1">运维与管理</div>
+            <div className="text-white/60">日志、监控、备份恢复、升级策略</div>
+          </a>
+        </CardContent>
+      </Card>
 
       {/* 快速开始 */}
       <Card className="bg-white/10 border-white/20 backdrop-blur-xl">
@@ -90,37 +116,16 @@ export default function HelpPage() {
         </CardContent>
       </Card>
 
-      {/* 系统信息 */}
+      {/* 帮助与支持 */}
       <Card className="bg-white/10 border-white/20 backdrop-blur-xl">
         <CardHeader>
-          <CardTitle className="text-white">ℹ️ 系统信息</CardTitle>
-          <CardDescription className="text-white/60">关于 DreamBuilder Portal</CardDescription>
+          <CardTitle className="text-white">🧩 帮助与支持</CardTitle>
+          <CardDescription className="text-white/60">获取更多帮助</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4 text-white/80 text-sm">
-          <div>
-            <h3 className="font-semibold text-white mb-2">版本信息</h3>
-            <ul className="space-y-1">
-              <li>• 版本: v1.0.0</li>
-              <li>• 构建日期: 2025-10-16</li>
-              <li>• 设计风格: macOS Big Sur / Monterey</li>
-            </ul>
-          </div>
-
-          <div>
-            <h3 className="font-semibold text-white mb-2">技术栈</h3>
-            <ul className="space-y-1">
-              <li>• 框架: <a href="https://nextjs.org" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">Next.js 14</a></li>
-              <li>• 认证: <a href="https://www.keycloak.org" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">Keycloak</a></li>
-              <li>• 动画: Framer Motion</li>
-              <li>• 样式: Tailwind CSS</li>
-            </ul>
-          </div>
-
-          <div className="pt-4 border-t border-white/10">
-            <p className="text-center text-xs text-white/60">
-              © 2025 DreamBuilder Portal. Built with Next.js 14. Powered by Keycloak.
-            </p>
-          </div>
+        <CardContent className="space-y-3 text-white/80 text-sm">
+          <a href="/docs" className="block hover:underline">完整文档目录</a>
+          <a href="/docs/faq" className="block hover:underline">常见问题</a>
+          <a href="/docs/changelog" className="block hover:underline">更新日志</a>
         </CardContent>
       </Card>
     </div>

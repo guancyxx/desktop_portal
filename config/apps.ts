@@ -12,6 +12,7 @@ export const applications: Application[] = [
     status: 'active',
     color: '#667eea',
     order: 1,
+    windowMode: 'window', // 在页面内窗口打开
   },
   {
     id: 'ai-assistant',
@@ -24,6 +25,7 @@ export const applications: Application[] = [
     status: 'active',
     color: '#f093fb',
     order: 2,
+    windowMode: 'window', // 在页面内窗口打开
   },
   {
     id: 'analytics',
@@ -36,6 +38,7 @@ export const applications: Application[] = [
     status: 'coming-soon',
     color: '#4facfe',
     order: 3,
+    windowMode: 'window', // 在页面内窗口打开
   },
   {
     id: 'user-management',
@@ -48,6 +51,7 @@ export const applications: Application[] = [
     status: 'active',
     color: '#fa709a',
     order: 4,
+    windowMode: 'window', // 在页面内窗口打开
   },
   {
     id: 'settings',
@@ -60,6 +64,7 @@ export const applications: Application[] = [
     status: 'active',
     color: '#a8edea',
     order: 5,
+    windowMode: 'window', // 在页面内窗口打开
   },
   {
     id: 'help',
@@ -72,6 +77,7 @@ export const applications: Application[] = [
     status: 'active',
     color: '#c3cfe2',
     order: 6,
+    windowMode: 'window', // 在页面内窗口打开
   },
   {
     id: 'dev-tools',
@@ -84,6 +90,33 @@ export const applications: Application[] = [
     status: 'active',
     color: '#fed6e3',
     order: 7,
+    windowMode: 'window', // 在页面内窗口打开
+  },
+  {
+    id: 'system-settings',
+    name: 'System Settings',
+    description: 'Configure system preferences',
+    icon: '🛠️',
+    url: '/system',
+    category: 'tools',
+    roles: ['user', 'admin'],
+    status: 'active',
+    color: '#d1d5db',
+    order: 8,
+    windowMode: 'window'
+  },
+  {
+    id: 'about',
+    name: 'About',
+    description: 'About DreamBuilder Portal',
+    icon: 'ℹ️',
+    url: '/about',
+    category: 'tools',
+    roles: ['user', 'admin'],
+    status: 'active',
+    color: '#cbd5e1',
+    order: 9,
+    windowMode: 'window'
   },
 ]
 

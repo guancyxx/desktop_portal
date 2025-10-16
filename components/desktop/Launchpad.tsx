@@ -32,10 +32,14 @@ export function Launchpad({ applications, isOpen, onClose, onAppClick }: Launchp
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-40 flex flex-col items-center justify-center bg-black/60 backdrop-blur-3xl"
-          onClick={onClose}
+          className="fixed inset-0 z-[10000] flex flex-col items-center justify-center bg-black/60 backdrop-blur-3xl"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              onClose()
+            }
+          }}
         >
-          <div className="relative h-full w-full max-w-7xl px-8 py-16" onClick={(e) => e.stopPropagation()}>
+          <div className="relative h-full w-full max-w-7xl px-8 py-16">
             {/* 关闭按钮 */}
             <motion.button
               initial={{ scale: 0 }}

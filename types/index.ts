@@ -11,6 +11,8 @@ export interface Application {
   status: 'active' | 'coming-soon' | 'disabled'
   color: string
   order?: number
+  // 窗口模式：'window' - 页面内窗口, 'tab' - 新标签页, 'auto' - 自动判断（默认）
+  windowMode?: 'window' | 'tab' | 'auto'
 }
 
 export interface UserProfile {

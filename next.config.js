@@ -39,7 +39,7 @@ const nextConfig = {
         headers: [
           {
             key: 'X-Frame-Options',
-            value: 'DENY',
+            value: 'SAMEORIGIN', // 允许同源iframe嵌入
           },
           {
             key: 'X-Content-Type-Options',

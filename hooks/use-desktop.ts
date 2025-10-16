@@ -18,14 +18,35 @@ export function useDesktop() {
   const [nextZIndex, setNextZIndex] = useState(100)
   const [isLaunchpadOpen, setIsLaunchpadOpen] = useState(false)
 
+  // 聚焦窗口
+  const focusWindow = useCallback((windowId: string) => {
+    setWindows(prevWindows => prevWindows.map(w =>
+      w.id === windowId ? { ...w, zIndex: nextZIndex } : w
+    ))
+    setNextZIndex(prev => prev + 1)
+  }, [nextZIndex])
+
+  // 恢复窗口
+  const restoreWindow = useCallback((windowId: string) => {
+    setWindows(prevWindows => prevWindows.map(w =>
+      w.id === windowId ? { ...w, isMinimized: false, zIndex: nextZIndex } : w
+    ))
+    setNextZIndex(prev => prev + 1)
+  }, [nextZIndex])
+
   // 打开应用
   const openApp = useCallback((app: Application) => {
     // 检查窗口是否已打开
     const existingWindow = windows.find(w => w.app.id === app.id)
     
     if (existingWindow) {
-      // 聚焦现有窗口
-      focusWindow(existingWindow.id)
+      // 如果窗口被最小化，恢复它
+      if (existingWindow.isMinimized) {
+        restoreWindow(existingWindow.id)
+      } else {
+        // 否则只聚焦
+        focusWindow(existingWindow.id)
+      }
       return
     }
 
@@ -45,7 +66,7 @@ export function useDesktop() {
 
     setWindows([...windows, newWindow])
     setNextZIndex(nextZIndex + 1)
-  }, [windows, nextZIndex])
+  }, [windows, nextZIndex, restoreWindow, focusWindow])
 
   // 关闭窗口
   const closeWindow = useCallback((windowId: string) => {
@@ -59,28 +80,12 @@ export function useDesktop() {
     ))
   }, [windows])
 
-  // 恢复窗口
-  const restoreWindow = useCallback((windowId: string) => {
-    setWindows(windows.map(w =>
-      w.id === windowId ? { ...w, isMinimized: false, zIndex: nextZIndex } : w
-    ))
-    setNextZIndex(nextZIndex + 1)
-  }, [windows, nextZIndex])
-
   // 最大化/还原窗口
   const toggleMaximize = useCallback((windowId: string) => {
     setWindows(windows.map(w =>
       w.id === windowId ? { ...w, isMaximized: !w.isMaximized } : w
     ))
   }, [windows])
-
-  // 聚焦窗口
-  const focusWindow = useCallback((windowId: string) => {
-    setWindows(windows.map(w =>
-      w.id === windowId ? { ...w, zIndex: nextZIndex } : w
-    ))
-    setNextZIndex(nextZIndex + 1)
-  }, [windows, nextZIndex])
 
   // 切换 Launchpad
   const toggleLaunchpad = useCallback(() => {
