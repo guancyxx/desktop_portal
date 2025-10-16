@@ -3,10 +3,10 @@ import { Application } from '@/types'
 export const applications: Application[] = [
   {
     id: 'task-manager',
-    name: 'Task Manager',
-    description: 'Manage your tasks, projects, and workflows efficiently',
+    name: '任务管理',
+    description: '管理您的任务、项目和工作流程',
     icon: '📋',
-    url: 'http://localhost:3001',
+    url: '/tasks',
     category: 'productivity',
     roles: ['user', 'admin'],
     status: 'active',
