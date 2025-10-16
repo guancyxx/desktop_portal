@@ -1,3 +1,5 @@
+# 开发环境 dockerignore
+
 # Dependencies
 node_modules
 npm-debug.log*
@@ -5,34 +7,44 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Next.js
+# Build outputs
 .next
 out
+dist
+build
+
+# Testing
+coverage
+.nyc_output
 
 # Environment
 .env
-.env.local
-.env*.local
+.env.*
+!.env.example
+!.env.development
 
 # IDE
 .vscode
 .idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
 
 # Git
 .git
 .gitignore
 
-# Documentation
-README.md
-CHANGELOG.md
-CONTRIBUTING.md
-IMPLEMENTATION.md
-SETUP.md
-
-# CI/CD
-.github
+# Docker
+Dockerfile*
+docker-compose*
+.dockerignore
 
 # Misc
-.DS_Store
-*.pem
-
+*.log
+*.pid
+*.seed
+*.pid.lock

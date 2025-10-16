@@ -97,7 +97,7 @@ export default async function ProfilePage() {
               </p>
             </div>
             <a
-              href={`${process.env.NEXT_PUBLIC_KEYCLOAK_URL || 'http://localhost:8080'}/realms/dreambuilder/account`}
+              href={`${process.env.NEXT_PUBLIC_KEYCLOAK_URL || 'http://localhost:8080'}/realms/Dreambuilder/account`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm font-medium text-primary hover:underline"
@@ -114,7 +114,7 @@ export default async function ProfilePage() {
               </p>
             </div>
             <a
-              href={`${process.env.NEXT_PUBLIC_KEYCLOAK_URL || 'http://localhost:8080'}/realms/dreambuilder/account`}
+              href={`${process.env.NEXT_PUBLIC_KEYCLOAK_URL || 'http://localhost:8080'}/realms/Dreambuilder/account`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm font-medium text-primary hover:underline"

@@ -1,12 +1,27 @@
 import { NextAuthOptions } from 'next-auth'
 import KeycloakProvider from 'next-auth/providers/keycloak'
 
+// 使用内部地址（容器间通信）用于服务器端请求
+const keycloakInternalUrl = process.env.KEYCLOAK_INTERNAL_URL || process.env.KEYCLOAK_URL || 'http://keycloak:8080'
+// 使用外部地址用于浏览器重定向
+const keycloakExternalUrl = process.env.NEXT_PUBLIC_KEYCLOAK_URL || 'http://localhost:8080'
+const keycloakRealm = process.env.KEYCLOAK_REALM || 'Dreambuilder'
+
 export const authOptions: NextAuthOptions = {
   providers: [
     KeycloakProvider({
-      clientId: process.env.KEYCLOAK_ID!,
-      clientSecret: process.env.KEYCLOAK_SECRET!,
-      issuer: process.env.KEYCLOAK_ISSUER,
+      clientId: process.env.KEYCLOAK_CLIENT_ID!,
+      clientSecret: process.env.KEYCLOAK_CLIENT_SECRET!,
+      issuer: `${keycloakInternalUrl}/realms/${keycloakRealm}`,
+      // 明确指定授权端点使用外部URL，让浏览器可以访问
+      authorization: {
+        params: {
+          scope: 'openid email profile',
+        },
+        url: `${keycloakExternalUrl}/realms/${keycloakRealm}/protocol/openid-connect/auth`,
+      },
+      token: `${keycloakInternalUrl}/realms/${keycloakRealm}/protocol/openid-connect/token`,
+      userinfo: `${keycloakInternalUrl}/realms/${keycloakRealm}/protocol/openid-connect/userinfo`,
     }),
   ],
   callbacks: {
