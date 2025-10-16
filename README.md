@@ -490,7 +490,17 @@ pm2 start npm --name "desktop-portal" -- start
 
 ---
 
-## 📚 参考文档
+## 📚 文档
+
+### 项目文档
+
+- **[文档中心](docs/README.md)** - 完整的文档导航
+- **[安装指南](docs/setup/SETUP.md)** - 详细安装和配置步骤
+- **[实施指南](docs/development/IMPLEMENTATION.md)** - 6阶段开发计划
+- **[贡献指南](docs/development/CONTRIBUTING.md)** - 代码规范和贡献流程
+- **[更新日志](docs/CHANGELOG.md)** - 版本历史
+
+### 外部资源
 
 - [Next.js 14 文档](https://nextjs.org/docs)
 - [NextAuth.js 文档](https://next-auth.js.org/)
