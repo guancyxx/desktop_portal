@@ -44,8 +44,8 @@ export default withAuth(
     
     // Content Security Policy（开发环境宽松，生产环境严格）
     const cspHeader = process.env.NODE_ENV === 'production'
-      ? "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' http://keycloak:8080 http://localhost:8080;"
-      : "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:;"
+      ? "default-src 'self'; frame-src 'self' http://localhost:* https://localhost:*; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' http://keycloak:8080 http://localhost:8080;"
+      : "default-src 'self'; frame-src 'self' http://localhost:* https://localhost:*; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' http://localhost:* https://localhost:* ws://localhost:*;"
     
     response.headers.set('Content-Security-Policy', cspHeader)
     

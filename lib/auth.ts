@@ -26,13 +26,60 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async jwt({ token, account, profile }) {
+      // 初始登录
       if (account) {
         token.accessToken = account.access_token
         token.idToken = account.id_token
         token.refreshToken = account.refresh_token
         token.expiresAt = account.expires_at
         token.roles = (account as any).realm_access?.roles || []
+        return token
       }
+
+      // Token 未过期，直接返回
+      if (token.expiresAt && Date.now() < (token.expiresAt as number) * 1000) {
+        return token
+      }
+
+      // Token 已过期，尝试刷新
+      if (token.refreshToken) {
+        try {
+          const response = await fetch(
+            `${keycloakInternalUrl}/realms/${keycloakRealm}/protocol/openid-connect/token`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+              },
+              body: new URLSearchParams({
+                client_id: process.env.KEYCLOAK_CLIENT_ID!,
+                client_secret: process.env.KEYCLOAK_CLIENT_SECRET!,
+                grant_type: 'refresh_token',
+                refresh_token: token.refreshToken as string,
+              }),
+            }
+          )
+
+          const refreshedTokens = await response.json()
+
+          if (!response.ok) {
+            throw new Error('Token refresh failed')
+          }
+
+          return {
+            ...token,
+            accessToken: refreshedTokens.access_token,
+            idToken: refreshedTokens.id_token,
+            refreshToken: refreshedTokens.refresh_token ?? token.refreshToken,
+            expiresAt: Math.floor(Date.now() / 1000) + refreshedTokens.expires_in,
+          }
+        } catch (error) {
+          console.error('Error refreshing access token:', error)
+          // 返回旧token，让用户重新登录
+          return { ...token, error: 'RefreshAccessTokenError' }
+        }
+      }
+
       return token
     },
     async session({ session, token }) {
@@ -42,6 +89,9 @@ export const authOptions: NextAuthOptions = {
       session.user = {
         ...session.user,
         roles: token.roles as string[],
+      }
+      if (token.error) {
+        session.error = token.error as string
       }
       return session
     },

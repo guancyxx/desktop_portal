@@ -37,6 +37,10 @@ const nextConfig = {
             value: 'SAMEORIGIN', // 允许同源iframe嵌入
           },
           {
+            key: 'Content-Security-Policy',
+            value: "default-src 'self'; frame-src 'self' http://localhost:* https://localhost:*; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' http://localhost:* https://localhost:* ws://localhost:*",
+          },
+          {
             key: 'X-Content-Type-Options',
             value: 'nosniff',
           },

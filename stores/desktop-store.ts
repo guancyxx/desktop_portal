@@ -26,6 +26,7 @@ interface DesktopState {
   windows: OpenWindow[]
   nextZIndex: number
   isLaunchpadOpen: boolean
+  isTaskSidebarOpen: boolean
   
   // 操作方法
   openApp: (app: Application) => void
@@ -36,6 +37,8 @@ interface DesktopState {
   focusWindow: (windowId: string) => void
   toggleLaunchpad: () => void
   setLaunchpadOpen: (isOpen: boolean) => void
+  toggleTaskSidebar: () => void
+  setTaskSidebarOpen: (isOpen: boolean) => void
   
   // 计算属性
   getActiveApps: () => string[]
@@ -51,6 +54,7 @@ export const useDesktopStore = create<DesktopState>()(
         windows: [],
         nextZIndex: 100,
         isLaunchpadOpen: false,
+        isTaskSidebarOpen: false,
         
         // 打开应用
         openApp: (app) => {
@@ -162,6 +166,20 @@ export const useDesktopStore = create<DesktopState>()(
         setLaunchpadOpen: (isOpen) => {
           set((draft) => {
             draft.isLaunchpadOpen = isOpen
+          })
+        },
+        
+        // 切换任务侧边栏
+        toggleTaskSidebar: () => {
+          set((draft) => {
+            draft.isTaskSidebarOpen = !draft.isTaskSidebarOpen
+          })
+        },
+        
+        // 设置任务侧边栏状态
+        setTaskSidebarOpen: (isOpen) => {
+          set((draft) => {
+            draft.isTaskSidebarOpen = isOpen
           })
         },
         

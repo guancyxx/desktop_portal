@@ -7,8 +7,10 @@ import { Dock } from './Dock'
 import { Launchpad } from './Launchpad'
 import { Window } from './Window'
 import { Wallpaper } from './Wallpaper'
+import { TaskSidebar } from './TaskSidebar'
 import { useDesktop } from '@/hooks/use-desktop'
 import { useDesktopShortcuts } from '@/hooks/use-keyboard-shortcuts'
+import { useDesktopStore } from '@/stores/desktop-store'
 
 interface DesktopProps {
   applications: Application[]
@@ -26,6 +28,11 @@ export function Desktop({ applications, wallpaper }: DesktopProps) {
     toggleLaunchpad,
     setIsLaunchpadOpen
   } = useDesktop()
+
+  // 从 zustand store 获取任务侧边栏状态
+  const isTaskSidebarOpen = useDesktopStore(state => state.isTaskSidebarOpen)
+  const toggleTaskSidebar = useDesktopStore(state => state.toggleTaskSidebar)
+  const setTaskSidebarOpen = useDesktopStore(state => state.setTaskSidebarOpen)
 
   // 获取顶层窗口（最前面的窗口）
   const getTopWindow = useCallback(() => {
@@ -96,17 +103,22 @@ export function Desktop({ applications, wallpaper }: DesktopProps) {
       <Wallpaper variant="gradient" />
 
       {/* 顶部菜单栏 */}
-      <MenuBar onOpenHelp={() => {
-        // 打开帮助应用（与Dock一致）
-        const helpApp = applications.find(a => a.id === 'help')
-        if (helpApp) handleAppClick(helpApp)
-      }} onOpenSystem={() => {
-        const sysApp = applications.find(a => a.id === 'system-settings')
-        if (sysApp) handleAppClick(sysApp)
-      }} onOpenAbout={() => {
-        const aboutApp = applications.find(a => a.id === 'about')
-        if (aboutApp) handleAppClick(aboutApp)
-      }} />
+      <MenuBar 
+        onOpenHelp={() => {
+          // 打开帮助应用（与Dock一致）
+          const helpApp = applications.find(a => a.id === 'help')
+          if (helpApp) handleAppClick(helpApp)
+        }} 
+        onOpenSystem={() => {
+          const sysApp = applications.find(a => a.id === 'system-settings')
+          if (sysApp) handleAppClick(sysApp)
+        }} 
+        onOpenAbout={() => {
+          const aboutApp = applications.find(a => a.id === 'about')
+          if (aboutApp) handleAppClick(aboutApp)
+        }}
+        onToggleTaskSidebar={toggleTaskSidebar}
+      />
 
       {/* 桌面区域 */}
       <div className="relative h-full w-full pt-8 pb-24">
@@ -178,6 +190,12 @@ export function Desktop({ applications, wallpaper }: DesktopProps) {
         isOpen={isLaunchpadOpen}
         onClose={() => setIsLaunchpadOpen(false)}
         onAppClick={handleAppClick}
+      />
+
+      {/* 任务侧边栏 */}
+      <TaskSidebar
+        isOpen={isTaskSidebarOpen}
+        onClose={() => setTaskSidebarOpen(false)}
       />
     </div>
   )

@@ -17,9 +17,10 @@ interface MenuBarProps {
   onOpenHelp?: () => void
   onOpenSystem?: () => void
   onOpenAbout?: () => void
+  onToggleTaskSidebar?: () => void
 }
 
-export function MenuBar({ onOpenHelp, onOpenSystem, onOpenAbout }: MenuBarProps) {
+export function MenuBar({ onOpenHelp, onOpenSystem, onOpenAbout, onToggleTaskSidebar }: MenuBarProps) {
   const { data: session } = useSession()
   const { theme, setTheme } = useTheme()
   const [currentTime, setCurrentTime] = useState(new Date())
@@ -114,10 +115,21 @@ export function MenuBar({ onOpenHelp, onOpenSystem, onOpenAbout }: MenuBarProps)
         <button 
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
           className="hover:text-white transition-colors"
+          title="切换主题"
         >
           {theme === 'dark' ? <Moon size={14} /> : <Sun size={14} />}
         </button>
-        {/* 预留空间（移除音量/WiFi/电量，给日期更多空间） */}
+
+        {/* 任务列表 */}
+        <button 
+          onClick={() => onToggleTaskSidebar?.()}
+          className="hover:text-white transition-colors"
+          title="待办任务"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+          </svg>
+        </button>
 
         {/* 用户菜单 */}
         <div className="relative" ref={userMenuRef}>

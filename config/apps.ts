@@ -6,7 +6,7 @@ export const applications: Application[] = [
     name: '任务管理',
     description: '管理您的任务、项目和工作流程',
     icon: '📋',
-    url: '/tasks',
+    url: 'http://localhost:3001/dashboard',
     category: 'productivity',
     roles: ['user', 'admin'],
     status: 'active',
