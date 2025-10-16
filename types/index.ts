@@ -1,18 +1,47 @@
 import { DefaultSession } from 'next-auth'
 
+// 应用类别类型
+export type ApplicationCategory = 'productivity' | 'ai' | 'analytics' | 'admin' | 'tools'
+
+// 应用状态类型
+export type ApplicationStatus = 'active' | 'coming-soon' | 'maintenance' | 'disabled'
+
+// 窗口模式类型
+export type WindowMode = 'window' | 'tab' | 'auto'
+
+// 用户角色类型
+export type Role = 'user' | 'admin' | 'developer' | 'guest'
+
+/**
+ * 应用程序接口
+ * 使用 readonly 确保不可变性
+ */
 export interface Application {
-  id: string
-  name: string
-  description: string
-  icon: string
-  url: string
-  category: string
-  roles: string[]
-  status: 'active' | 'coming-soon' | 'disabled'
-  color: string
-  order?: number
-  // 窗口模式：'window' - 页面内窗口, 'tab' - 新标签页, 'auto' - 自动判断（默认）
-  windowMode?: 'window' | 'tab' | 'auto'
+  readonly id: string
+  readonly name: string
+  readonly description: string
+  readonly icon: string
+  readonly url: string
+  readonly category: ApplicationCategory
+  readonly roles: readonly Role[]
+  readonly status: ApplicationStatus
+  readonly color: string
+  readonly order: number
+  readonly windowMode: WindowMode
+}
+
+/**
+ * 类型守卫：检查是否为有效的应用对象
+ */
+export function isApplication(obj: unknown): obj is Application {
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    'id' in obj &&
+    'name' in obj &&
+    'url' in obj &&
+    'status' in obj
+  )
 }
 
 export interface UserProfile {

@@ -2,11 +2,6 @@
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
-  
-  // 实验性功能
-  experimental: {
-    serverActions: true,
-  },
 
   // 图片优化配置
   images: {
