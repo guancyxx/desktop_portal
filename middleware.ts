@@ -1,6 +1,7 @@
 import { withAuth } from 'next-auth/middleware'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { extractTenantFromHostname, isValidTenant } from '@/config/tenant-realms'
 
 // 管理员专属路径
 const adminPaths = ['/admin', '/settings/users', '/settings/system']
@@ -12,6 +13,19 @@ export default withAuth(
   function middleware(req) {
     const token = req.nextauth.token
     const { pathname } = req.nextUrl
+    const hostname = req.headers.get('host') || 'localhost'
+    
+    // 提取租户 ID
+    const tenantId = extractTenantFromHostname(hostname)
+    
+    // 如果有租户 ID，验证其有效性
+    if (tenantId && !isValidTenant(tenantId)) {
+      console.warn(`Invalid tenant ID: ${tenantId}`)
+      // 无效租户重定向到错误页面
+      return NextResponse.redirect(
+        new URL('/error?code=404&message=租户不存在', req.url)
+      )
+    }
     
     // 如果已认证且访问根路径，重定向到 /desktop
     if (pathname === '/') {

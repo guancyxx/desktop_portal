@@ -1,5 +1,6 @@
 import { NextAuthOptions } from 'next-auth'
 import KeycloakProvider from 'next-auth/providers/keycloak'
+import { extractTenantFromToken } from './tenant/extract-tenant'
 
 // 使用内部地址（容器间通信）用于服务器端请求
 const keycloakInternalUrl = process.env.KEYCLOAK_INTERNAL_URL || process.env.KEYCLOAK_URL || 'http://keycloak:8080'
@@ -27,12 +28,36 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, account, profile }) {
       // 初始登录
-      if (account) {
+      if (account && profile) {
         token.accessToken = account.access_token
         token.idToken = account.id_token
         token.refreshToken = account.refresh_token
         token.expiresAt = account.expires_at
         token.roles = (account as any).realm_access?.roles || []
+        
+        // 提取租户信息
+        token.groups = (profile as any).groups || []
+        token.tenant_name = (profile as any).tenant_name
+        
+        // 添加当前 realm 信息
+        // 从 Keycloak token 中提取 realm 名称
+        if (token.idToken && typeof token.idToken === 'string') {
+          try {
+            const parts = token.idToken.split('.')
+            if (parts.length >= 2) {
+              const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString())
+              token.realmName = payload.iss?.split('/realms/')[1] || keycloakRealm
+            } else {
+              token.realmName = keycloakRealm
+            }
+          } catch (error) {
+            console.error('Failed to parse idToken:', error)
+            token.realmName = keycloakRealm
+          }
+        } else {
+          token.realmName = keycloakRealm
+        }
+        
         return token
       }
 
@@ -90,6 +115,15 @@ export const authOptions: NextAuthOptions = {
         ...session.user,
         roles: token.roles as string[],
       }
+      
+      // 自动提取租户信息
+      session.tenant = extractTenantFromToken(token)
+      
+      // 添加当前 realm 信息到 session
+      if (token.realmName) {
+        session.realmName = token.realmName as string
+      }
+      
       if (token.error) {
         session.error = token.error as string
       }

@@ -98,12 +98,14 @@ export function Desktop({ applications, wallpaper }: DesktopProps) {
   }
 
   return (
-    <div className="relative h-screen w-full overflow-hidden">
-      {/* 桌面壁纸 */}
-      <Wallpaper variant="gradient" />
+    <div className="relative h-screen w-full overflow-hidden flex flex-col">
+      {/* 桌面主体 */}
+      <div className="relative flex-1 overflow-hidden">
+        {/* 桌面壁纸 */}
+        <Wallpaper variant="gradient" />
 
-      {/* 顶部菜单栏 */}
-      <MenuBar 
+        {/* 顶部菜单栏 */}
+        <MenuBar 
         onOpenHelp={() => {
           // 打开帮助应用（与Dock一致）
           const helpApp = applications.find(a => a.id === 'help')
@@ -192,11 +194,12 @@ export function Desktop({ applications, wallpaper }: DesktopProps) {
         onAppClick={handleAppClick}
       />
 
-      {/* 任务侧边栏 */}
-      <TaskSidebar
-        isOpen={isTaskSidebarOpen}
-        onClose={() => setTaskSidebarOpen(false)}
-      />
+        {/* 任务侧边栏 */}
+        <TaskSidebar
+          isOpen={isTaskSidebarOpen}
+          onClose={() => setTaskSidebarOpen(false)}
+        />
+      </div>
     </div>
   )
 }
