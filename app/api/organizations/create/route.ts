@@ -17,7 +17,7 @@ import { keycloakAdmin } from '@/lib/keycloak/admin-client'
 interface CreateOrganizationRequest {
   displayName: string
   slug: string
-  userPassword: string
+  userPassword?: string // 可选：在统一 SSO 架构下不需要密码
 }
 
 export async function POST(req: NextRequest) {
@@ -25,9 +25,19 @@ export async function POST(req: NextRequest) {
     // 获取当前用户 session
     const session = await getServerSession(authOptions)
 
-    if (!session || !session.user?.email) {
+    if (!session || !session.user) {
       return NextResponse.json(
         { error: '未授权访问' },
+        { status: 401 }
+      )
+    }
+
+    // 获取用户标识：优先使用 email，如果没有则使用 username 或 name
+    const userIdentifier = session.user.email || session.user.username || session.user.name
+    
+    if (!userIdentifier) {
+      return NextResponse.json(
+        { error: '无法获取用户标识：缺少 email、username 或 name' },
         { status: 401 }
       )
     }
@@ -37,9 +47,9 @@ export async function POST(req: NextRequest) {
     const { displayName, slug, userPassword } = body
 
     // 验证输入
-    if (!displayName || !slug || !userPassword) {
+    if (!displayName || !slug) {
       return NextResponse.json(
-        { error: '缺少必要参数：displayName、slug 或 userPassword' },
+        { error: '缺少必要参数：displayName 或 slug' },
         { status: 400 }
       )
     }
@@ -52,13 +62,13 @@ export async function POST(req: NextRequest) {
     }
 
     // 创建 Realm
-    console.log(`[API] Creating organization for user: ${session.user.email}`)
+    console.log(`[API] Creating organization for user: ${userIdentifier}`)
     console.log(`[API] Organization name: ${displayName}, slug: ${slug}`)
 
     const result = await keycloakAdmin.createRealm(
       displayName,
       slug,
-      session.user.email
+      userIdentifier
     )
 
     if (!result.success) {
@@ -68,16 +78,21 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // 为用户设置密码
-    const passwordSet = await keycloakAdmin.setUserPassword(
-      result.realmName,
-      result.userId,
-      userPassword,
-      false // 非临时密码
-    )
+    // 如果提供了密码，为用户设置密码
+    // 在统一 SSO 架构下，用户通过 master realm 认证，不需要在新 realm 中单独设置密码
+    if (userPassword) {
+      const passwordSet = await keycloakAdmin.setUserPassword(
+        result.realmName,
+        result.userId,
+        userPassword,
+        false // 非临时密码
+      )
 
-    if (!passwordSet) {
-      console.warn(`[API] Failed to set password for user in realm ${result.realmName}`)
+      if (!passwordSet) {
+        console.warn(`[API] Failed to set password for user in realm ${result.realmName}`)
+      }
+    } else {
+      console.log(`[API] No password provided, user will authenticate through master realm SSO`)
     }
 
     console.log(`[API] Organization created successfully: ${result.realmName}`)
@@ -95,7 +110,7 @@ export async function POST(req: NextRequest) {
       nextStep: {
         action: 'login',
         realm: result.realmName,
-        username: session.user.email,
+        username: userIdentifier,
       }
     })
   } catch (error) {

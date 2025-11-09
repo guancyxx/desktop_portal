@@ -12,11 +12,7 @@ import {
   ChevronRight,
   Check
 } from 'lucide-react'
-
-interface Realm {
-  realmName: string
-  displayName: string
-}
+import { getUserRealms, type RealmInfo } from '@/lib/api/keycloak-client'
 
 interface UserMenuProps {
   onOpenSystem?: () => void
@@ -26,7 +22,7 @@ interface UserMenuProps {
 export function UserMenu({ onOpenSystem, onOpenAbout }: UserMenuProps) {
   const { data: session } = useSession()
   const [showUserMenu, setShowUserMenu] = useState(false)
-  const [realms, setRealms] = useState<Realm[]>([])
+  const [realms, setRealms] = useState<RealmInfo[]>([])
   const [loading, setLoading] = useState(false)
   const [currentRealm, setCurrentRealm] = useState<string>('')
   const userMenuRef = useRef<HTMLDivElement>(null)
@@ -50,18 +46,36 @@ export function UserMenu({ onOpenSystem, onOpenAbout }: UserMenuProps) {
     }
   }, [session])
 
-  // 获取用户可访问的组织列表
+  // 获取用户可访问的组织列表（使用前端直接调用）
   const fetchRealms = async () => {
+    if (!session?.accessToken) {
+      console.log('[UserMenu] No access token, skipping realm fetch')
+      return
+    }
+
     try {
       setLoading(true)
-      const response = await fetch('/api/user/realms')
-      if (response.ok) {
-        const data = await response.json()
-        console.log('[UserMenu] API response:', data.realms)
-        setRealms(data.realms || [])
-      }
+      
+      // 直接调用 Keycloak API
+      console.log('[UserMenu] Fetching realms with user token...')
+      const userRealms = await getUserRealms(session.accessToken as string)
+      
+      console.log('[UserMenu] Fetched realms:', userRealms)
+      setRealms(userRealms)
     } catch (error) {
-      console.error('Failed to fetch realms:', error)
+      console.error('[UserMenu] Error fetching realms:', error)
+      
+      // 如果前端调用失败，fallback 到后端 API
+      console.log('[UserMenu] Falling back to backend API...')
+      try {
+        const response = await fetch('/api/user/realms')
+        if (response.ok) {
+          const data = await response.json()
+          setRealms(data.realms || [])
+        }
+      } catch (fallbackError) {
+        console.error('[UserMenu] Fallback also failed:', fallbackError)
+      }
     } finally {
       setLoading(false)
     }
@@ -85,32 +99,64 @@ export function UserMenu({ onOpenSystem, onOpenAbout }: UserMenuProps) {
     }
   }, [showUserMenu])
 
-  // 切换组织
+  // 切换组织 (NextAuth v5 版本)
   const handleSwitchRealm = async (realmName: string) => {
     try {
-      console.log(`[UserMenu] Switching to realm: ${realmName}`)
-      console.log(`[UserMenu] Realm name type:`, typeof realmName)
-      console.log(`[UserMenu] Realm name value:`, realmName)
+      console.log(`[UserMenu v5] Switching to realm: ${realmName}`)
       
       // 关闭菜单
       setShowUserMenu(false)
       
-      // 退出当前登录
-      await signOut({ redirect: false })
-      
-      // 清除本地存储
-      if (typeof window !== 'undefined') {
-        sessionStorage.clear()
-        localStorage.clear()
+      // 如果是当前 realm，不需要切换
+      if (realmName === currentRealm) {
+        return
       }
       
-      // 延迟一下再跳转，确保退出完成
-      setTimeout(() => {
-        // 直接跳转到指定 realm 的 Keycloak 登录页面
-        window.location.href = `/api/auth/signin-keycloak?realm=${realmName}&callbackUrl=/desktop`
-      }, 100)
+      const targetOrg = realms.find(r => r.realmName === realmName)
+      console.log(`[UserMenu v5] Target organization: ${targetOrg?.displayName}`)
+      
+      // 1. 保存切换意图到localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('switching-to-realm', realmName)
+        localStorage.setItem('switching-to-realm-name', targetOrg?.displayName || realmName)
+      }
+      
+      // 2. 构建OAuth callback URL（使用新的switch-realm endpoint）
+      const callbackUrl = `${window.location.origin}/api/auth/callback/realm-switch`
+      
+      // 3. 构建 state 参数
+      const stateData = {
+        realm: realmName,
+        redirectUri: callbackUrl
+      }
+      const state = btoa(JSON.stringify(stateData))
+      
+      // 4. 构建SSO认证URL
+      const keycloakUrl = process.env.NEXT_PUBLIC_KEYCLOAK_URL || 'http://localhost:8080'
+      const authUrl = new URL(`${keycloakUrl}/realms/${realmName}/protocol/openid-connect/auth`)
+      
+      authUrl.searchParams.set('client_id', 'desktop-portal')
+      authUrl.searchParams.set('response_type', 'code')
+      authUrl.searchParams.set('scope', 'openid email profile')
+      authUrl.searchParams.set('redirect_uri', callbackUrl)
+      authUrl.searchParams.set('state', state)
+      authUrl.searchParams.set('kc_idp_hint', 'master-idp') // 自动使用 Master IDP 进行 SSO
+      authUrl.searchParams.set('prompt', 'login') // 强制刷新登录页，避免本地状态干扰
+      
+      console.log(`[UserMenu v5] Redirecting to SSO for realm: ${realmName}`)
+      
+      // 5. 跳转到SSO认证
+      window.location.href = authUrl.toString()
+      
     } catch (err) {
-      console.error('Failed to switch realm:', err)
+      console.error('[UserMenu v5] Failed to switch realm:', err)
+      
+      // 清理localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('switching-to-realm')
+        localStorage.removeItem('switching-to-realm-name')
+      }
+      
       alert('切换组织失败，请重试')
     }
   }

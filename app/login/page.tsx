@@ -2,55 +2,48 @@
 
 import { useEffect } from 'react'
 import { signIn, useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 export default function LoginPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   useEffect(() => {
+    // 如果已认证，重定向到目标页面
     if (status === 'authenticated') {
-      router.push('/desktop')
+      const callbackUrl = searchParams.get('callbackUrl') || '/desktop'
+      router.push(callbackUrl)
+      return
     }
-  }, [status, router])
 
-  if (status === 'loading') {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <div className="mb-4 text-4xl">⏳</div>
-          <p className="text-lg">Loading...</p>
+    // 如果未认证，自动触发 Keycloak 登录
+    if (status === 'unauthenticated') {
+      const callbackUrl = searchParams.get('callbackUrl') || '/desktop'
+      // v5：通过 authorizationParams 明确传递到授权请求
+      signIn('keycloak', {
+        callbackUrl,
+        authorizationParams: {
+          kc_idp_hint: 'master-idp',
+          prompt: 'login',
+        } as any,
+      } as any)
+    }
+  }, [status, router, searchParams])
+
+  // 显示加载状态
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-purple-500 to-pink-500">
+      <div className="text-center">
+        <div className="mb-4 text-6xl animate-pulse">🏠</div>
+        <h2 className="text-2xl font-semibold text-white mb-2">
+          DreamBuilder Portal
+        </h2>
+        <p className="text-white/80">正在跳转到登录页面...</p>
+        <div className="mt-6 flex justify-center">
+          <div className="w-8 h-8 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
         </div>
       </div>
-    )
-  }
-
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-purple-500 to-pink-500 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="mb-4 text-6xl">🏠</div>
-          <CardTitle className="text-3xl">Welcome to DreamBuilder</CardTitle>
-          <CardDescription className="text-base">
-            Sign in to access your applications
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Button
-            className="w-full h-12 text-base"
-            onClick={() => signIn('keycloak', { callbackUrl: '/desktop' })}
-          >
-            <span className="mr-2">🔐</span>
-            Sign in with Keycloak
-          </Button>
-
-          <p className="text-center text-xs text-muted-foreground">
-            By signing in, you agree to our Terms of Service and Privacy Policy
-          </p>
-        </CardContent>
-      </Card>
     </div>
   )
 }

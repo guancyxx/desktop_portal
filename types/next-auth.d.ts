@@ -1,51 +1,59 @@
-import { DefaultSession, DefaultUser } from 'next-auth'
-import { JWT } from 'next-auth/jwt'
-
 /**
- * 租户信息（多 Realm 架构）
+ * NextAuth v5 类型扩展
  */
-export interface TenantInfo {
-  /** 租户 ID（子域名） */
-  tenantId: string
-  /** 租户名称 */
-  tenantName: string
-  /** 租户所在的 Realm */
-  tenantRealm: string
-}
 
-declare module 'next-auth' {
+import { DefaultSession } from "next-auth"
+
+declare module "next-auth" {
   interface Session {
     accessToken?: string
     idToken?: string
-    roles?: string[]
-    tenant?: TenantInfo
+    refreshToken?: string
     realmName?: string
+    roles?: string[]
     error?: string
     user: {
       roles?: string[]
-    } & DefaultSession['user']
+    } & DefaultSession["user"]
+    // Realm切换相关
+    switchRealm?: string
+    tokens?: {
+      accessToken: string
+      refreshToken: string
+      idToken: string
+      expiresAt: number
+      roles?: string[]
+      groups?: string[]
+    }
   }
 
-  interface User extends DefaultUser {
-    roles?: string[]
-  }
-}
-
-declare module 'next-auth/jwt' {
   interface JWT {
     accessToken?: string
     idToken?: string
     refreshToken?: string
     expiresAt?: number
-    roles?: string[]
-    tenantId?: string
-    tenantName?: string
     realmName?: string
+    roles?: string[]
+    groups?: string[]
     error?: string
-    sub?: string
-    email?: string
-    name?: string
-    preferred_username?: string
+  }
+
+  interface User {
+    roles?: string[]
+    groups?: string[]
+    realmName?: string
   }
 }
 
+declare module "next-auth/jwt" {
+  interface JWT {
+    accessToken?: string
+    idToken?: string
+    refreshToken?: string
+    expiresAt?: number
+    realmName?: string
+    roles?: string[]
+    groups?: string[]
+    error?: string
+  }
+}

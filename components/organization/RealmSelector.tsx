@@ -56,23 +56,39 @@ export function RealmSelector() {
       // 先关闭下拉菜单
       setIsOpen(false)
       
-      // 1. 调用后端 API 清除 Keycloak 会话
-      const response = await fetch('/api/auth/signout-keycloak', { method: 'POST' })
-      const data = await response.json()
-      
-      console.log('[RealmSelector] Keycloak logout response:', data)
-      
-      // 2. 清除 NextAuth 本地会话（不重定向）
-      await signOut({ redirect: false })
-      
-      // 3. 清除本地存储
-      if (typeof window !== 'undefined') {
-        sessionStorage.clear()
+      // 如果是当前 realm，不需要切换
+      if (realmName === currentRealmName) {
+        return
       }
       
-      // 4. 重定向到新 realm 的登录页面
-      const callbackUrl = `/api/auth/signin?callbackUrl=/desktop&realm=${realmName}`
-      window.location.href = callbackUrl
+      // 1. 先清除当前 session（可选，但建议清除以确保获取新 token）
+      await signOut({ redirect: false })
+      
+      // 2. 构建 state 参数，包含目标 realm 和回调 URL
+      const stateData = {
+        realm: realmName,
+        callbackUrl: '/desktop'
+      }
+      const state = Buffer.from(JSON.stringify(stateData)).toString('base64')
+      
+      // 3. 使用 Identity Brokering 进行 SSO 切换
+      // 跳转到目标 realm 的认证端点，使用 kc_idp_hint 触发 SSO
+      const keycloakUrl = process.env.NEXT_PUBLIC_KEYCLOAK_URL || 'http://localhost:8080'
+      const authUrl = new URL(`${keycloakUrl}/realms/${realmName}/protocol/openid-connect/auth`)
+      
+      authUrl.searchParams.set('client_id', 'desktop-portal')
+      authUrl.searchParams.set('response_type', 'code')
+      authUrl.searchParams.set('scope', 'openid email profile')
+      // 使用 v5 的专用回调与前端 update() 流程
+      const callbackUrl = `${window.location.origin}/api/auth/callback/realm-switch`
+      authUrl.searchParams.set('redirect_uri', callbackUrl)
+      authUrl.searchParams.set('state', state)
+      authUrl.searchParams.set('kc_idp_hint', 'master-idp') // 自动使用 Master IDP 进行 SSO
+      authUrl.searchParams.set('prompt', 'login')
+      
+      // 由于用户已经在 Dreambuilder realm 登录，Keycloak 会自动完成 SSO 认证
+      console.log('[RealmSelector] Redirecting to SSO auth for realm:', realmName)
+      window.location.href = authUrl.toString()
       
     } catch (err) {
       console.error('[RealmSelector] Failed to switch realm:', err)

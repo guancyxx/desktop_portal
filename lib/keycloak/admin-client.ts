@@ -155,12 +155,305 @@ class KeycloakAdminService {
   }
 
   /**
+   * 配置 Authentication Flow，禁用首次登录的 review profile
+   * 
+   * @param realmName - 要配置的 realm
+   */
+  async disableReviewProfile(realmName: string): Promise<boolean> {
+    try {
+      await this.authenticate()
+      this.client.setConfig({ realmName })
+
+      console.log(`[Keycloak Admin] Disabling review profile for realm: ${realmName}`)
+
+      // 获取 "first broker login" flow
+      const flows = await this.client.authenticationManagement.getFlows()
+      const firstBrokerLoginFlow = flows.find((f: any) => f.alias === 'first broker login')
+
+      if (!firstBrokerLoginFlow) {
+        console.warn(`[Keycloak Admin] First broker login flow not found in realm: ${realmName}`)
+        return false
+      }
+
+      // 获取该 flow 的所有执行步骤
+      const executions = await this.client.authenticationManagement.getExecutions({
+        flow: 'first broker login'
+      })
+
+      console.log(`[Keycloak Admin] Found ${executions.length} executions in first broker login flow`)
+
+      // 找到 "review profile config" 执行步骤并禁用它
+      let reviewProfileFound = false
+      for (const execution of executions) {
+        console.log(`[Keycloak Admin] Execution: ${execution.displayName} (${execution.providerId}) - ${execution.requirement}`)
+        
+        if (execution.displayName === 'Review Profile' || 
+            execution.providerId === 'idp-review-profile') {
+          reviewProfileFound = true
+          
+          // 如果已经是 DISABLED，跳过
+          if (execution.requirement === 'DISABLED') {
+            console.log(`[Keycloak Admin] Review Profile is already disabled`)
+            continue
+          }
+          
+          // 使用 Keycloak Admin Client 的正确方法
+          // updateExecution 需要使用 flow alias 而不是 realm
+          if (execution.id) {
+            try {
+              // 直接修改 execution 对象的 requirement
+              execution.requirement = 'DISABLED'
+              
+              // 使用 updateExecution API - 第一个参数是 flow alias
+              await this.client.authenticationManagement.updateExecution(
+                { flow: 'first broker login' },
+                execution
+              )
+              console.log(`[Keycloak Admin] Successfully disabled review profile step (ID: ${execution.id})`)
+            } catch (updateError) {
+              console.error(`[Keycloak Admin] Failed to update execution:`, updateError)
+              throw updateError
+            }
+          } else {
+            console.warn(`[Keycloak Admin] Execution has no ID, cannot update`)
+          }
+        }
+      }
+      
+      if (!reviewProfileFound) {
+        console.warn(`[Keycloak Admin] Review Profile step not found in first broker login flow`)
+      }
+
+      return true
+    } catch (error) {
+      console.error('[Keycloak Admin] Failed to disable review profile:', error)
+      if (error instanceof Error) {
+        console.error('[Keycloak Admin] Error details:', error.message, error.stack)
+      }
+      return false
+    }
+  }
+
+  /**
+   * 配置 Identity Provider（身份联邦）
+   * 让新 realm 使用 master realm 作为身份提供商
+   * 
+   * @param realmName - 要配置的 realm
+   */
+  async setupIdentityBrokering(realmName: string): Promise<boolean> {
+    try {
+      await this.authenticate()
+      this.client.setConfig({ realmName })
+
+      // 使用外部可访问的 URL（浏览器可以访问的）
+      const keycloakExternalUrl = process.env.KEYCLOAK_EXTERNAL_URL || 'http://localhost:8080'
+      const masterRealmUrl = `${keycloakExternalUrl}/realms/Dreambuilder`
+      const brokerClientId = `${realmName}-broker`
+
+      console.log(`[Keycloak Admin] Setting up identity brokering for ${realmName}`)
+      console.log(`[Keycloak Admin] Master realm URL: ${masterRealmUrl}`)
+
+      // 1. 在 master realm (Dreambuilder) 中创建一个 broker client
+      this.client.setConfig({ realmName: 'Dreambuilder' })
+      
+      let brokerClient
+      try {
+        const keycloakExternalUrl = process.env.KEYCLOAK_EXTERNAL_URL || 'http://localhost:8080'
+        const redirectUris = [
+          `${keycloakExternalUrl}/realms/${realmName}/broker/dreambuilder/endpoint`,
+          `${keycloakExternalUrl}/realms/${realmName}/broker/dreambuilder/endpoint/*`,
+        ]
+
+        // 检查 client 是否已存在
+        const existingClients = await this.client.clients.find({
+          clientId: brokerClientId
+        })
+        
+        if (existingClients && existingClients.length > 0) {
+          brokerClient = existingClients[0]
+          console.log(`[Keycloak Admin] Broker client already exists: ${brokerClientId}`)
+          
+          // 更新 redirect URIs（添加新的 realm 的 redirect URI）
+          const currentRedirectUris = brokerClient.redirectUris || []
+          const newRedirectUris = Array.from(new Set([...currentRedirectUris, ...redirectUris]))
+          
+          await this.client.clients.update(
+            { id: brokerClient.id! },
+            {
+              ...brokerClient,
+              redirectUris: newRedirectUris,
+            }
+          )
+          console.log(`[Keycloak Admin] Updated broker client redirect URIs`)
+        } else {
+          // 创建新的 broker client
+          const clientResponse = await this.client.clients.create({
+            clientId: brokerClientId,
+            name: `Broker for ${realmName}`,
+            enabled: true,
+            publicClient: false,
+            standardFlowEnabled: true,
+            directAccessGrantsEnabled: false,
+            serviceAccountsEnabled: false,
+            redirectUris,
+            webOrigins: ['+'],
+            protocol: 'openid-connect',
+          })
+
+          // 获取创建的 client
+          const clients = await this.client.clients.find({
+            clientId: brokerClientId
+          })
+          brokerClient = clients[0]
+          console.log(`[Keycloak Admin] Created broker client: ${brokerClientId}`)
+        }
+      } catch (error) {
+        console.error('[Keycloak Admin] Failed to create/update broker client:', error)
+        return false
+      }
+
+      // 获取 client secret
+      const brokerClientSecret = await this.client.clients.getClientSecret({
+        id: brokerClient.id!
+      })
+
+      // 2. 在新 realm 中配置 Identity Provider
+      this.client.setConfig({ realmName })
+
+      const idpConfig = {
+        alias: 'dreambuilder',
+        displayName: 'DreamBuilder SSO',
+        providerId: 'keycloak-oidc',
+        enabled: true,
+        trustEmail: true,
+        storeToken: true,
+        addReadTokenRoleOnCreate: false,
+        authenticateByDefault: false,
+        linkOnly: false,
+        // 使用自动创建用户的流程，跳过 review profile
+        firstBrokerLoginFlowAlias: 'first broker login',
+        config: {
+          clientId: brokerClientId,
+          clientSecret: brokerClientSecret.value || '',
+          authorizationUrl: `${masterRealmUrl}/protocol/openid-connect/auth`,
+          tokenUrl: `${masterRealmUrl}/protocol/openid-connect/token`,
+          logoutUrl: `${masterRealmUrl}/protocol/openid-connect/logout`,
+          userInfoUrl: `${masterRealmUrl}/protocol/openid-connect/userinfo`,
+          issuer: masterRealmUrl,
+          jwksUrl: `${masterRealmUrl}/protocol/openid-connect/certs`,
+          validateSignature: 'true',
+          useJwksUrl: 'true',
+          defaultScope: 'openid email profile',
+          syncMode: 'FORCE',
+          backchannelSupported: 'true',
+          // 禁用 update profile on first login
+          'guiOrder': '',
+          'hideOnLoginPage': 'false',
+        }
+      }
+
+      try {
+        // 检查 IDP 是否已存在
+        const existingIdps = await this.client.identityProviders.find()
+        const existingIdp = existingIdps.find((idp: any) => idp.alias === 'dreambuilder')
+
+        if (existingIdp) {
+          // 更新现有 IDP
+          await this.client.identityProviders.update(
+            { alias: 'dreambuilder' },
+            idpConfig
+          )
+          console.log(`[Keycloak Admin] Updated identity provider: dreambuilder`)
+        } else {
+          // 创建新 IDP
+          await this.client.identityProviders.create(idpConfig)
+          console.log(`[Keycloak Admin] Created identity provider: dreambuilder`)
+        }
+      } catch (error) {
+        console.error('[Keycloak Admin] Failed to configure identity provider:', error)
+        return false
+      }
+
+      // 3. 配置 Identity Provider Mapper（映射用户属性）
+      try {
+        const mappers = [
+          {
+            name: 'email',
+            identityProviderAlias: 'dreambuilder',
+            identityProviderMapper: 'oidc-user-attribute-idp-mapper',
+            config: {
+              'claim': 'email',
+              'user.attribute': 'email',
+              'syncMode': 'INHERIT'
+            }
+          },
+          {
+            name: 'username',
+            identityProviderAlias: 'dreambuilder',
+            identityProviderMapper: 'oidc-username-idp-mapper',
+            config: {
+              'template': '${CLAIM.preferred_username}',
+              'syncMode': 'INHERIT'
+            }
+          },
+          {
+            name: 'firstName',
+            identityProviderAlias: 'dreambuilder',
+            identityProviderMapper: 'oidc-user-attribute-idp-mapper',
+            config: {
+              'claim': 'given_name',
+              'user.attribute': 'firstName',
+              'syncMode': 'INHERIT'
+            }
+          },
+          {
+            name: 'lastName',
+            identityProviderAlias: 'dreambuilder',
+            identityProviderMapper: 'oidc-user-attribute-idp-mapper',
+            config: {
+              'claim': 'family_name',
+              'user.attribute': 'lastName',
+              'syncMode': 'INHERIT'
+            }
+          }
+        ]
+
+        for (const mapper of mappers) {
+          try {
+            await this.client.identityProviders.createMapper({
+              alias: 'dreambuilder',
+              ...mapper
+            })
+          } catch (error) {
+            // Mapper 可能已存在，忽略错误
+            console.log(`[Keycloak Admin] Mapper ${mapper.name} already exists or failed to create`)
+          }
+        }
+
+        console.log(`[Keycloak Admin] Configured identity provider mappers`)
+      } catch (error) {
+        console.error('[Keycloak Admin] Failed to configure mappers:', error)
+        // 不阻断流程，继续执行
+      }
+
+      console.log(`[Keycloak Admin] Identity brokering setup completed for ${realmName}`)
+      return true
+    } catch (error) {
+      console.error('[Keycloak Admin] Failed to setup identity brokering:', error)
+      return false
+    }
+  }
+
+  /**
    * 创建新的 Realm
+   * @param displayName - 组织显示名称
+   * @param slug - 组织标识
+   * @param userIdentifier - 用户标识（email 或 username）
    */
   async createRealm(
     displayName: string,
     slug: string,
-    creatorEmail: string
+    userIdentifier: string
   ): Promise<RealmCreationResult> {
     await this.authenticate()
 
@@ -207,13 +500,32 @@ class KeycloakAdminService {
         rememberMe: true,
         verifyEmail: false, // 开发环境暂时关闭
         sslRequired: 'none', // 开发环境
+        // 禁用首次登录时的 review profile 流程
+        attributes: {
+          'frontendUrl': '',
+          'userProfileEnabled': 'false',
+        },
         // 其他配置
         accessTokenLifespan: 1800, // 30 分钟
         ssoSessionIdleTimeout: 1800,
         ssoSessionMaxLifespan: 36000,
       })
 
-      // 5. 在新 Realm 中创建 desktop-portal Client
+      // 5. 禁用 Review Profile 流程
+      console.log(`[Keycloak Admin] Disabling review profile...`)
+      const disableSuccess = await this.disableReviewProfile(realmName)
+      if (!disableSuccess) {
+        console.warn(`[Keycloak Admin] Failed to disable review profile, but continuing...`)
+      }
+
+      // 6. 配置 Identity Brokering（身份联邦）
+      console.log(`[Keycloak Admin] Configuring identity brokering...`)
+      const brokeringSuccess = await this.setupIdentityBrokering(realmName)
+      if (!brokeringSuccess) {
+        console.warn(`[Keycloak Admin] Identity brokering setup failed, but continuing...`)
+      }
+
+      // 7. 在新 Realm 中创建 desktop-portal Client
       this.client.setConfig({ realmName })
       
       const clientResponse = await this.client.clients.create({
@@ -236,54 +548,18 @@ class KeycloakAdminService {
         frontchannelLogout: true,
       })
 
-      // 6. 获取 Client Secret
+      // 8. 获取 Client Secret
       const clientId = clientResponse.id!
       const clientSecret = await this.client.clients.getClientSecret({
         id: clientId
       })
 
-      // 7. 在新 Realm 中创建用户
-      const userResponse = await this.client.users.create({
-        username: creatorEmail,
-        email: creatorEmail,
-        emailVerified: true,
-        enabled: true,
-        attributes: {
-          createdBySystem: ['desktop-portal'],
-          organizationRole: ['admin'],
-          createdAt: [new Date().toISOString()],
-        },
-      })
+      // 9. 不再在新 realm 中创建独立用户，因为使用了 Identity Brokering
+      // 用户将通过 Dreambuilder realm 自动同步
+      console.log(`[Keycloak Admin] User will be auto-provisioned via Identity Brokering`)
 
-      const userId = userResponse.id!
-
-      // 8. 给用户分配 Realm 管理员角色
-      // 获取 realm-admin 客户端角色
-      const realmManagementClient = await this.client.clients.find({
-        clientId: 'realm-management',
-      })
-
-      if (realmManagementClient && realmManagementClient.length > 0) {
-        const realmManagementClientId = realmManagementClient[0].id!
-        
-        // 获取 realm-admin 角色
-        const roles = await this.client.clients.listRoles({
-          id: realmManagementClientId,
-        })
-
-        const realmAdminRole = roles.find(r => r.name === 'realm-admin')
-        
-        if (realmAdminRole) {
-          await this.client.users.addClientRoleMappings({
-            id: userId,
-            clientUniqueId: realmManagementClientId,
-            roles: [{
-              id: realmAdminRole.id!,
-              name: realmAdminRole.name!,
-            }],
-          })
-        }
-      }
+      // 返回一个临时的 userId（将在首次登录时自动创建）
+      const userId = 'auto-provisioned'
 
       console.log(`[Keycloak Admin] Realm created successfully: ${realmName}`)
 
@@ -311,53 +587,88 @@ class KeycloakAdminService {
 
   /**
    * 获取用户有权限访问的所有 Realm
-   * 通过遍历所有 realm，检查用户是否存在于该 realm 中
+   * 
+   * 在 Identity Brokering 架构下，我们返回所有配置了 DreamBuilder IDP 的 realm
+   * 因为所有用户都通过 DreamBuilder realm 认证，然后可以 SSO 到其他 realm
    * 
    * @param userEmail - 用户邮箱
    */
   async getUserRealms(userEmail: string): Promise<any[]> {
     try {
+      console.log(`[Keycloak Admin] Getting realms for user: ${userEmail}`)
+      
+      // 强制重新认证以确保token有效
+      this.initialized = false
       await this.authenticate()
 
       // 获取所有 Realm
+      console.log('[Keycloak Admin] Fetching all realms...')
       const allRealms = await this.client.realms.find()
       
-      // 过滤掉 master realm
+      console.log(`[Keycloak Admin] Total realms found: ${allRealms.length}`)
+      
+      // 过滤掉 master 和 Dreambuilder realm
       const nonMasterRealms = allRealms.filter((r: any) => 
-        r.realm !== 'master' && r.enabled === true
+        r.realm !== 'master' && 
+        r.realm !== 'Dreambuilder' &&
+        r.enabled === true
       )
 
-      console.log(`[Keycloak Admin] Found ${nonMasterRealms.length} non-master realms`)
+      console.log(`[Keycloak Admin] Non-master realms: ${nonMasterRealms.length}`)
+      console.log(`[Keycloak Admin] Realm names: ${nonMasterRealms.map((r: any) => r.realm).join(', ')}`)
 
-      // 检查每个 realm 中是否存在该用户
-      const userRealms = []
+      // 检查每个 realm 是否配置了 DreamBuilder Identity Provider
+      const accessibleRealms = []
       
       for (const realm of nonMasterRealms) {
         try {
+          console.log(`[Keycloak Admin] Checking realm: ${realm.realm}`)
+          
           // 切换到该 realm 的上下文
           this.client.setConfig({ realmName: realm.realm! })
           
-          // 查找该用户
-          const users = await this.client.users.find({
-            email: userEmail,
-            exact: true,
-          })
+          // 检查是否有 dreambuilder IDP
+          const idps = await this.client.identityProviders.find()
+          console.log(`[Keycloak Admin] Realm ${realm.realm} has ${idps.length} IDPs`)
           
-          // 如果用户存在，添加到列表
-          if (users.length > 0) {
-            console.log(`[Keycloak Admin] User found in realm: ${realm.realm}`)
-            userRealms.push(realm)
+          const hasDreambuilderIdp = idps.some((idp: any) => idp.alias === 'dreambuilder')
+          
+          if (hasDreambuilderIdp) {
+            console.log(`[Keycloak Admin] ✓ Realm ${realm.realm} has DreamBuilder IDP - accessible via SSO`)
+            accessibleRealms.push(realm)
+          } else {
+            console.log(`[Keycloak Admin] Realm ${realm.realm} does not have DreamBuilder IDP, checking direct user access...`)
+            // 如果没有 IDP，检查用户是否直接存在于该 realm
+            const users = await this.client.users.find({
+              email: userEmail,
+              exact: true,
+            })
+            
+            if (users.length > 0) {
+              console.log(`[Keycloak Admin] ✓ User found directly in realm: ${realm.realm}`)
+              accessibleRealms.push(realm)
+            } else {
+              console.log(`[Keycloak Admin] ✗ User not found in realm: ${realm.realm}`)
+            }
           }
         } catch (error) {
-          console.error(`[Keycloak Admin] Error checking user in realm ${realm.realm}:`, error)
+          console.error(`[Keycloak Admin] Error checking realm ${realm.realm}:`, error)
+          if (error instanceof Error) {
+            console.error(`[Keycloak Admin] Error details: ${error.message}`)
+          }
           // 继续检查下一个 realm
         }
       }
 
-      console.log(`[Keycloak Admin] User has access to ${userRealms.length} realms`)
-      return userRealms
+      console.log(`[Keycloak Admin] Final result: User has access to ${accessibleRealms.length} realms`)
+      console.log(`[Keycloak Admin] Accessible realms: ${accessibleRealms.map((r: any) => r.realm).join(', ')}`)
+      
+      return accessibleRealms
     } catch (error) {
       console.error('[Keycloak Admin] Error getting user realms:', error)
+      if (error instanceof Error) {
+        console.error('[Keycloak Admin] Error details:', error.message, error.stack)
+      }
       return []
     }
   }
@@ -406,6 +717,41 @@ class KeycloakAdminService {
       return users.length > 0 ? users[0] : null
     } catch (error) {
       console.error('[Keycloak Admin] Failed to find user:', error)
+      return null
+    }
+  }
+
+  /**
+   * 获取指定 Realm 中 desktop-portal client 的密钥
+   */
+  async getClientSecret(realmName: string): Promise<string | null> {
+    try {
+      await this.authenticate()
+      this.client.setConfig({ realmName })
+
+      console.log(`[Keycloak Admin] Getting client secret for realm: ${realmName}`)
+
+      // 查找 desktop-portal client
+      const clients = await this.client.clients.find({
+        clientId: 'desktop-portal'
+      })
+
+      if (!clients || clients.length === 0) {
+        console.error(`[Keycloak Admin] desktop-portal client not found in realm: ${realmName}`)
+        return null
+      }
+
+      const client = clients[0]
+      
+      // 获取 client secret
+      const secretResponse = await this.client.clients.getClientSecret({
+        id: client.id!
+      })
+
+      console.log(`[Keycloak Admin] Successfully retrieved client secret for realm: ${realmName}`)
+      return secretResponse.value || null
+    } catch (error) {
+      console.error(`[Keycloak Admin] Failed to get client secret for realm ${realmName}:`, error)
       return null
     }
   }

@@ -1,23 +1,37 @@
-import { NextAuthOptions } from 'next-auth'
-import KeycloakProvider from 'next-auth/providers/keycloak'
-import { extractTenantFromToken } from './tenant/extract-tenant'
+/**
+ * NextAuth v5 (Auth.js) 配置
+ * 
+ * v5 的主要变化：
+ * 1. 配置文件移到根目录
+ * 2. 使用 NextAuth() 函数而不是 NextAuthOptions
+ * 3. 支持动态 Provider 配置
+ * 4. 更好的 TypeScript 支持
+ */
 
-// 使用内部地址（容器间通信）用于服务器端请求
+import NextAuth from "next-auth"
+import Keycloak from "next-auth/providers/keycloak"
+import type { NextAuthConfig } from "next-auth"
+import { keycloakAdmin } from '@/lib/keycloak/admin-client'
+
+// 环境变量
 const keycloakInternalUrl = process.env.KEYCLOAK_INTERNAL_URL || process.env.KEYCLOAK_URL || 'http://keycloak:8080'
-// 使用外部地址用于浏览器重定向
 const keycloakExternalUrl = process.env.NEXT_PUBLIC_KEYCLOAK_URL || 'http://localhost:8080'
 const keycloakRealm = process.env.KEYCLOAK_REALM || 'Dreambuilder'
 
-export const authOptions: NextAuthOptions = {
+export const authConfig = {
   providers: [
-    KeycloakProvider({
+    Keycloak({
       clientId: process.env.KEYCLOAK_CLIENT_ID!,
       clientSecret: process.env.KEYCLOAK_CLIENT_SECRET!,
       issuer: `${keycloakInternalUrl}/realms/${keycloakRealm}`,
-      // 明确指定授权端点使用外部URL，让浏览器可以访问
+      // v5 中可以更灵活地配置授权端点
       authorization: {
         params: {
           scope: 'openid email profile',
+          // 取消本地登录页，直接走 Dreambuilder IdP SSO
+          kc_idp_hint: 'master-idp',
+          // 强制刷新登录页面，避免使用上次本地状态
+          prompt: 'login',
         },
         url: `${keycloakExternalUrl}/realms/${keycloakRealm}/protocol/openid-connect/auth`,
       },
@@ -25,40 +39,52 @@ export const authOptions: NextAuthOptions = {
       userinfo: `${keycloakInternalUrl}/realms/${keycloakRealm}/protocol/openid-connect/userinfo`,
     }),
   ],
+  
   callbacks: {
-    async jwt({ token, account, profile, trigger }) {
-      console.log(`[Auth] JWT callback: trigger=${trigger}, hasAccount=${!!account}, hasProfile=${!!profile}`)
-      console.log(`[Auth] Token keys:`, Object.keys(token))
-      console.log(`[Auth] Token._isManual:`, (token as any)._isManual)
-      console.log(`[Auth] Token._realm:`, (token as any)._realm)
-      console.log(`[Auth] Token.realmName:`, token.realmName)
+    async jwt({ token, account, profile, trigger, session }) {
+      console.log(`[Auth v5] JWT callback: trigger=${trigger}`)
       
-      // 检查是否是手动创建的token（realm切换）
-      // 手动创建的token有 _isManual 和 _realm 标记
-      if ((token as any)._isManual && (token as any)._realm) {
-        console.log(`[Auth] ✅ Manual token detected for realm: ${token.realmName}`)
-        // 手动创建的token，直接返回，保留所有字段
-        // 移除 _isManual 标记，避免后续混淆
-        const { _isManual, ...cleanToken } = token as any
-        return cleanToken
+      // v5: 支持动态realm的关键 - 检查是否是realm切换
+      if (trigger === 'update' && session?.switchRealm) {
+        console.log(`[Auth v5] Realm switch detected: ${session.switchRealm}`)
+        
+        // 从session中获取新的realm信息
+        const newRealmName = session.switchRealm
+        const newTokens = session.tokens
+        
+        if (newTokens && newRealmName) {
+          console.log(`[Auth v5] Updating token for realm: ${newRealmName}`)
+          
+          // 更新token到新的realm
+          return {
+            ...token,
+            accessToken: newTokens.accessToken,
+            refreshToken: newTokens.refreshToken,
+            idToken: newTokens.idToken,
+            expiresAt: newTokens.expiresAt,
+            realmName: newRealmName,
+            // 保留其他字段
+            name: token.name,
+            email: token.email,
+            sub: token.sub,
+            roles: newTokens.roles || token.roles,
+            groups: newTokens.groups || token.groups,
+          }
+        }
       }
       
-      console.log(`[Auth] Not a manual token, processing normally...`)
-
-      // 初始登录（通过OAuth Provider）
+      // 初始登录
       if (account && profile) {
+        console.log(`[Auth v5] Initial login`)
+        
         token.accessToken = account.access_token
         token.idToken = account.id_token
         token.refreshToken = account.refresh_token
         token.expiresAt = account.expires_at
         token.roles = (account as any).realm_access?.roles || []
-        
-        // 提取租户信息
         token.groups = (profile as any).groups || []
-        token.tenant_name = (profile as any).tenant_name
         
-        // 添加当前 realm 信息
-        // 从 Keycloak token 中提取 realm 名称
+        // 从 idToken 中提取 realm 名称
         if (token.idToken && typeof token.idToken === 'string') {
           try {
             const parts = token.idToken.split('.')
@@ -69,42 +95,36 @@ export const authOptions: NextAuthOptions = {
               token.realmName = keycloakRealm
             }
           } catch (error) {
-            console.error('Failed to parse idToken:', error)
+            console.error('[Auth v5] Failed to parse idToken:', error)
             token.realmName = keycloakRealm
           }
         } else {
           token.realmName = keycloakRealm
         }
         
-        console.log(`[Auth] Initial login to realm: ${token.realmName}`)
+        console.log(`[Auth v5] Logged in to realm: ${token.realmName}`)
         return token
       }
-
-      // Token 未过期，直接返回（保留 realmName）
+      
+      // Token 未过期，直接返回
       if (token.expiresAt && Date.now() < (token.expiresAt as number) * 1000) {
         return token
       }
-
+      
       // Token 已过期，尝试刷新
       if (token.refreshToken) {
         try {
-          // 使用 token 中保存的 realmName，而不是硬编码的 keycloakRealm
           const currentRealm = (token.realmName as string) || keycloakRealm
-          console.log(`[Auth] Refreshing token for realm: ${currentRealm}`)
+          console.log(`[Auth v5] Refreshing token for realm: ${currentRealm}`)
           
-          // 动态获取当前realm的client secret
-          // 注意：这里需要导入keycloakAdmin
+          // 动态获取client secret
           let clientSecret = process.env.KEYCLOAK_CLIENT_SECRET!
           
-          // 如果不是默认realm，需要动态获取client secret
           if (currentRealm !== keycloakRealm) {
-            const { keycloakAdmin } = await import('@/lib/keycloak/admin-client')
             const dynamicSecret = await keycloakAdmin.getClientSecret(currentRealm)
             if (dynamicSecret) {
               clientSecret = dynamicSecret
-              console.log(`[Auth] Using dynamic client secret for realm: ${currentRealm}`)
-            } else {
-              console.warn(`[Auth] Failed to get dynamic client secret, using default`)
+              console.log(`[Auth v5] Using dynamic client secret for realm: ${currentRealm}`)
             }
           }
           
@@ -123,62 +143,71 @@ export const authOptions: NextAuthOptions = {
               }),
             }
           )
-
+          
           const refreshedTokens = await response.json()
-
+          
           if (!response.ok) {
             throw new Error('Token refresh failed')
           }
-
+          
+          console.log(`[Auth v5] Token refreshed successfully for realm: ${currentRealm}`)
+          
           return {
             ...token,
             accessToken: refreshedTokens.access_token,
             idToken: refreshedTokens.id_token,
             refreshToken: refreshedTokens.refresh_token ?? token.refreshToken,
             expiresAt: Math.floor(Date.now() / 1000) + refreshedTokens.expires_in,
-            // 保留 realmName
             realmName: currentRealm,
           }
         } catch (error) {
-          console.error('Error refreshing access token:', error)
-          // 返回旧token，让用户重新登录
+          console.error('[Auth v5] Error refreshing token:', error)
           return { ...token, error: 'RefreshAccessTokenError' }
         }
       }
-
+      
       return token
     },
+    
     async session({ session, token }) {
+      // v5: session callback 更简洁
       session.accessToken = token.accessToken as string
       session.idToken = token.idToken as string
+      session.realmName = token.realmName as string
       session.roles = token.roles as string[]
-      session.user = {
-        ...session.user,
-        roles: token.roles as string[],
-      }
-      
-      // 自动提取租户信息
-      session.tenant = extractTenantFromToken(token)
-      
-      // 添加当前 realm 信息到 session
-      if (token.realmName) {
-        session.realmName = token.realmName as string
-      }
       
       if (token.error) {
         session.error = token.error as string
       }
+      
+      // 添加用户角色
+      if (session.user) {
+        session.user.roles = token.roles as string[]
+      }
+      
       return session
     },
   },
+  
   pages: {
     signIn: '/login',
     error: '/error',
   },
+  
   session: {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  secret: process.env.NEXTAUTH_SECRET,
-}
+  
+  // v5: 使用 AUTH_SECRET 而不是 NEXTAUTH_SECRET
+  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
+  
+  // v5: 信任主机配置
+  trustHost: true,
+} satisfies NextAuthConfig
+
+export const { handlers, auth, signIn, signOut, update } = NextAuth(authConfig)
+
+// 导出类型定义
+export type { Session } from "next-auth"
 

@@ -17,7 +17,6 @@ export default function CreateOrganizationPage() {
   const [formData, setFormData] = useState({
     displayName: '',
     slug: '',
-    userPassword: '',
   })
   
   const [loading, setLoading] = useState(false)
@@ -65,19 +64,10 @@ export default function CreateOrganizationPage() {
 
       setSuccess(true)
       
-      // 2 秒后自动跳转到新组织登录页面
-      setTimeout(async () => {
-        try {
-          // 先退出当前登录
-          await signOut({ redirect: false })
-          
-          // 跳转到新组织的登录页面
-          window.location.href = `/api/auth/signin-realm?realm=${data.organization.realmName}&callbackUrl=/desktop`
-        } catch (error) {
-          console.error('Failed to switch to new organization:', error)
-          // 如果失败，直接跳转到新组织登录
-          window.location.href = `/api/auth/signin-realm?realm=${data.organization.realmName}&callbackUrl=/desktop`
-        }
+      // 提示用户组织创建成功，并说明如何访问
+      setTimeout(() => {
+        // 回到桌面页面，用户可以在组织列表中看到新创建的组织
+        router.push('/desktop')
       }, 2000)
     } catch (err) {
       console.error('Failed to create organization:', err)
@@ -112,7 +102,10 @@ export default function CreateOrganizationPage() {
             组织创建成功！
           </h2>
           <p className="text-gray-600 mt-2">
-            正在跳转到新组织登录页面...
+            您的新组织已成功创建。即将返回桌面...
+          </p>
+          <p className="text-sm text-gray-500 mt-2">
+            💡 您可以在用户菜单中的"选择组织"列表里找到新创建的组织
           </p>
           <div className="mt-4">
             <Loader2 className="w-5 h-5 mx-auto animate-spin text-blue-600" />
@@ -165,11 +158,20 @@ export default function CreateOrganizationPage() {
             )}
 
             {/* 当前用户信息 */}
-            <div className="bg-gray-50 rounded-lg p-4">
-              <p className="text-sm text-gray-600">您将成为组织的管理员</p>
-              <p className="text-sm font-medium text-gray-900 mt-1">
-                {session.user?.email}
-              </p>
+            <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <span className="text-blue-600 text-lg">👤</span>
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-900">
+                    {session.user?.email || session.user?.username || session.user?.name}
+                  </p>
+                  <p className="text-xs text-gray-600 mt-1">
+                    您将成为组织的管理员，通过统一登录访问
+                  </p>
+                </div>
+              </div>
             </div>
 
             {/* 组织名称 */}
@@ -220,25 +222,6 @@ export default function CreateOrganizationPage() {
               )}
             </div>
 
-            {/* 密码 */}
-            <div>
-              <label htmlFor="userPassword" className="block text-sm font-medium text-gray-700 mb-2">
-                设置您的密码 <span className="text-red-500">*</span>
-              </label>
-              <input
-                id="userPassword"
-                type="password"
-                required
-                minLength={8}
-                value={formData.userPassword}
-                onChange={(e) => setFormData(prev => ({ ...prev, userPassword: e.target.value }))}
-                placeholder="至少 8 个字符"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                这将是您在新组织中的登录密码
-              </p>
-            </div>
 
             {/* 提交按钮 */}
             <div className="flex gap-3 pt-4">
@@ -272,9 +255,14 @@ export default function CreateOrganizationPage() {
 
           {/* 提示信息 */}
           <div className="px-8 py-4 bg-gray-50 border-t border-gray-200">
-            <p className="text-xs text-gray-600">
-              💡 提示：创建组织后，您将成为该组织的管理员，可以邀请其他成员加入。
-            </p>
+            <div className="space-y-2">
+              <p className="text-xs text-gray-600">
+                💡 <strong>提示</strong>：创建组织后，您将成为该组织的管理员，可以邀请其他成员加入。
+              </p>
+              <p className="text-xs text-gray-600">
+                🔐 <strong>统一登录</strong>：使用您当前的登录凭据即可访问新组织，无需单独设置密码。
+              </p>
+            </div>
           </div>
         </div>
       </div>

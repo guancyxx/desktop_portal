@@ -134,6 +134,8 @@ export function getAuthOptions(tenantConfig: TenantRealmConfig): NextAuthOptions
         if (session.user) {
           session.user.email = token.email as string
           session.user.name = token.name as string
+          // 如果没有 email，使用 preferred_username 作为标识
+          session.user.username = token.preferred_username as string
         }
 
         // 如果有 Token 刷新错误，提示需要重新登录
