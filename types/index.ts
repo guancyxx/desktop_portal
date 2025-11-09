@@ -1,7 +1,7 @@
 import { DefaultSession } from 'next-auth'
 
 // 应用类别类型
-export type ApplicationCategory = 'productivity' | 'ai' | 'analytics' | 'admin' | 'tools'
+export type ApplicationCategory = 'productivity' | 'ai' | 'analytics' | 'admin' | 'tools' | 'ecommerce'
 
 // 应用状态类型
 export type ApplicationStatus = 'active' | 'coming-soon' | 'maintenance' | 'disabled'
@@ -73,7 +73,7 @@ declare module 'next-auth' {
   }
 }
 
-export type AppCategory = 'all' | 'productivity' | 'ai' | 'analytics' | 'admin' | 'tools'
+export type AppCategory = 'all' | 'productivity' | 'ai' | 'analytics' | 'admin' | 'tools' | 'ecommerce'
 
 export interface QuickAction {
   id: string

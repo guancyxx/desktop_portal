@@ -118,6 +118,19 @@ export const applications: Application[] = [
     order: 9,
     windowMode: 'window'
   },
+  {
+    id: 'fresher',
+    name: 'Fresher',
+    description: '生鲜商城 - 新鲜食材，便捷购物',
+    icon: '🛒',
+    url: 'http://localhost:3004',
+    category: 'ecommerce',
+    roles: ['user', 'admin'],
+    status: 'active',
+    color: '#10b981',
+    order: 10,
+    windowMode: 'window',
+  },
 ]
 
 export const categories = [
@@ -127,5 +140,6 @@ export const categories = [
   { id: 'analytics', label: 'Analytics', icon: '📊' },
   { id: 'admin', label: 'Administration', icon: '👥' },
   { id: 'tools', label: 'Tools', icon: '🔧' },
+  { id: 'ecommerce', label: 'E-Commerce', icon: '🛒' },
 ]
 
