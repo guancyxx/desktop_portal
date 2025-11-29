@@ -427,6 +427,152 @@ export function AppGrid({ apps }: { apps: Application[] }) {
 
 ---
 
+## 🤖 Crawl4AI Feature
+
+### Overview
+
+The Crawl4AI feature provides intelligent web crawling with LLM-powered content extraction capabilities. It enables organizations to:
+
+- **Extract structured content** from web pages using AI models (Ollama, OpenAI, Anthropic)
+- **Configure crawling behavior** with custom browser and crawler settings
+- **Process requests synchronously or asynchronously** for different use cases
+- **Manage reusable configurations** for consistent crawling workflows
+- **Cache results intelligently** to optimize performance
+
+### Key Features
+
+| Feature | Description |
+|---------|-------------|
+| **Dual Execution Modes** | Sync (immediate results) or Async (background processing) |
+| **LLM Extraction** | Schema-based data extraction with natural language instructions |
+| **Configuration Management** | Reusable crawl configs with browser/crawler settings |
+| **Performance** | Intelligent caching (24h TTL), rate limiting (100 req/hour) |
+| **Security** | SSRF protection, content size limits (10MB), tenant isolation |
+| **Monitoring** | Crawl history, execution metrics, cache hit rates |
+
+### Quick Start
+
+1. **Prerequisites**:
+   ```bash
+   # Start required services
+   docker-compose up -d crawl4ai ollama redis
+   
+   # Verify services
+   curl http://localhost:11235/health  # Crawl4AI
+   curl http://localhost:11434/api/tags  # Ollama
+   ```
+
+2. **Access Crawl UI**:
+   - Navigate to sidebar → "Crawl" app
+   - Enter target URL
+   - Configure LLM extraction (optional)
+   - Submit sync or async crawl
+
+3. **Manage Configurations**:
+   - Go to Settings → Crawl Configuration
+   - Create reusable configs with browser/crawler settings
+   - Set default configuration for auto-apply
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────┐
+│         Crawl4AI Feature Architecture           │
+├─────────────────────────────────────────────────┤
+│                                                 │
+│  ┌────────────────────────────────────┐        │
+│  │  Presentation Layer (React)        │        │
+│  │  - CrawlRequestForm                │        │
+│  │  - ConfigPanel / Modals            │        │
+│  │  - HistoryTable                    │        │
+│  └────────────────────────────────────┘        │
+│                   │                             │
+│  ┌────────────────────────────────────┐        │
+│  │  API Routes (Next.js)              │        │
+│  │  - /api/crawl (sync)               │        │
+│  │  - /api/crawl/job (async)          │        │
+│  │  - /api/crawl/config (CRUD)        │        │
+│  │  - Rate Limiting Middleware        │        │
+│  └────────────────────────────────────┘        │
+│                   │                             │
+│  ┌────────────────────────────────────┐        │
+│  │  Application Layer (Use Cases)     │        │
+│  │  - SubmitCrawlTask                 │        │
+│  │  - GetCrawlHistory                 │        │
+│  │  - CreateCrawlConfig               │        │
+│  │  - UpdateCrawlConfig               │        │
+│  └────────────────────────────────────┘        │
+│                   │                             │
+│  ┌────────────────────────────────────┐        │
+│  │  Domain Layer (Business Logic)     │        │
+│  │  - CrawlTask (Entity)              │        │
+│  │  - CrawlConfig (Entity)            │        │
+│  │  - CrawlService (Validation)       │        │
+│  │  - Repositories (Interfaces)       │        │
+│  └────────────────────────────────────┘        │
+│                   │                             │
+│  ┌────────────────────────────────────┐        │
+│  │  Infrastructure Layer              │        │
+│  │  - Crawl4AIClient (HTTP)           │        │
+│  │  - OllamaClient (LLM)              │        │
+│  │  - PrismaCrawlTaskRepository       │        │
+│  │  - RedisQueueClient (BullMQ)       │        │
+│  └────────────────────────────────────┘        │
+│                   │                             │
+│  ┌────────────────────────────────────┐        │
+│  │  External Services                 │        │
+│  │  - Crawl4AI (FastAPI)              │        │
+│  │  - Ollama (LLM Inference)          │        │
+│  │  - PostgreSQL (Data)               │        │
+│  │  - Redis (Queue + Cache)           │        │
+│  └────────────────────────────────────┘        │
+│                                                 │
+└─────────────────────────────────────────────────┘
+```
+
+### API Endpoints
+
+| Method | Endpoint | Description | Rate Limit |
+|--------|----------|-------------|------------|
+| POST | `/api/crawl` | Submit sync crawl (immediate response) | 100/hour |
+| POST | `/api/crawl/job` | Submit async job (returns task_id) | 100/hour |
+| GET | `/api/crawl/job/:id` | Get job status and result | No limit |
+| GET | `/api/crawl/history` | List crawl tasks for organization | No limit |
+| GET | `/api/crawl/config` | List configurations | No limit |
+| POST | `/api/crawl/config` | Create configuration | No limit |
+| PUT | `/api/crawl/config/:id` | Update configuration | No limit |
+| DELETE | `/api/crawl/config/:id` | Delete configuration | No limit |
+
+### Security Features
+
+- ✅ **SSRF Protection**: Blocks private IPs (10.x, 192.168.x, 127.x, 169.254.x) and cloud metadata endpoints
+- ✅ **Content Size Limits**: Maximum 10MB response size to prevent memory exhaustion
+- ✅ **Rate Limiting**: 100 requests per hour per organization (token bucket algorithm)
+- ✅ **Tenant Isolation**: All data scoped by organizationId, strict access control
+- ✅ **Input Validation**: Zod schemas for all API requests, URL validation
+
+### Performance
+
+- **Caching**: SHA-256 based cache keys, 24-hour TTL, Redis backed
+- **Indexing**: Database indexes on organizationId, status, cacheKey, createdAt
+- **Async Processing**: Background worker with BullMQ for long-running jobs
+- **Concurrency Limits**: Max 10 active jobs per organization
+
+### User Documentation
+
+For detailed usage instructions, see:
+- **[Crawl4AI User Guide](docs/features/CRAWL4AI_USER_GUIDE.md)** - Comprehensive guide with examples
+- **[API Reference](docs/features/CRAWL4AI_USER_GUIDE.md#api-reference)** - Endpoint documentation
+- **[Troubleshooting](docs/features/CRAWL4AI_USER_GUIDE.md#troubleshooting)** - Common issues and solutions
+
+### Development Notes
+
+- **DDD Architecture**: Strict layering (Domain → Application → Infrastructure → Presentation)
+- **Multi-tenant**: All queries filtered by organizationId
+- **Constitution Compliance**: English-first documentation, containerized services, conventional commits
+
+---
+
 ## 🚀 部署
 
 ### Vercel 部署（推荐）

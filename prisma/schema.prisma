@@ -1,0 +1,132 @@
+// Prisma schema for Crawl4AI Integration
+// Database: PostgreSQL (dreambuilder_db)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ===== Crawl4AI Entities =====
+
+enum CrawlStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+model CrawlTask {
+  id             String      @id @default(uuid()) @db.Uuid
+  organizationId String      @map("organization_id") @db.Uuid
+  userId         String      @map("user_id") @db.Uuid
+  
+  // Crawl input
+  url            String      @db.Text
+  configId       String?     @map("config_id") @db.Uuid
+  
+  // Status
+  status         CrawlStatus @default(PENDING)
+  priority       Int         @default(5) @db.Integer
+  
+  // Results
+  markdownContent String?    @map("markdown_content") @db.Text
+  extractedData   Json?      @map("extracted_data")
+  errorMessage    String?    @map("error_message") @db.Text
+  
+  // LLM configuration
+  llmProvider    String?     @map("llm_provider") @db.VarChar(50)
+  llmModel       String?     @map("llm_model") @db.VarChar(100)
+  llmSchema      Json?       @map("llm_schema")
+  llmInstruction String?     @map("llm_instruction") @db.Text
+  
+  // Performance
+  cacheKey       String?     @map("cache_key") @db.VarChar(64)
+  executionTimeMs Int?       @map("execution_time_ms") @db.Integer
+  
+  // Metadata
+  metadata       Json        @default("{}")
+  
+  // Timestamps
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamp()
+  updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamp()
+  completedAt    DateTime?   @map("completed_at") @db.Timestamp()
+  
+  // Relations
+  config         CrawlConfig? @relation(fields: [configId], references: [id], onDelete: SetNull)
+  
+  @@index([organizationId], name: "idx_crawl_tasks_org_id")
+  @@index([status], name: "idx_crawl_tasks_status")
+  @@index([userId], name: "idx_crawl_tasks_user_id")
+  @@index([cacheKey], name: "idx_crawl_tasks_cache_key")
+  @@index([createdAt(sort: Desc)], name: "idx_crawl_tasks_created_at")
+  
+  // Unique constraint: prevent duplicate active crawls of same URL per tenant
+  @@unique([organizationId, url], name: "idx_crawl_tasks_org_url_active", map: "unique_active_crawl")
+  
+  @@map("crawl_tasks")
+}
+
+model CrawlConfig {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  
+  // Configuration
+  name           String   @db.VarChar(100)
+  isDefault      Boolean  @default(false) @map("is_default")
+  
+  // Browser configuration
+  browserConfig  Json     @default("{}") @map("browser_config")
+  crawlerConfig  Json     @default("{}") @map("crawler_config")
+  
+  // LLM defaults
+  llmProvider    String?  @map("llm_provider") @db.VarChar(50)
+  llmModel       String?  @map("llm_model") @db.VarChar(100)
+  
+  // Metadata
+  description    String?  @db.Text
+  
+  // Timestamps
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamp()
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamp()
+  
+  // Relations
+  tasks          CrawlTask[]
+  
+  @@index([organizationId], name: "idx_crawl_configs_org_id")
+  @@index([userId], name: "idx_crawl_configs_user_id")
+  @@index([isDefault], name: "idx_crawl_configs_default")
+  
+  // Unique constraint: only one default config per tenant
+  @@unique([organizationId, isDefault], name: "unique_default_config")
+  // Unique constraint: unique config names per tenant
+  @@unique([organizationId, name], name: "unique_config_name")
+  
+  @@map("crawl_configs")
+}
+
+model CrawlCache {
+  cacheKey       String   @id @map("cache_key") @db.VarChar(64)
+  url            String   @db.Text
+  
+  // Cached content
+  markdownContent String  @map("markdown_content") @db.Text
+  extractedData   Json?   @map("extracted_data")
+  
+  // Cache metadata
+  hitCount       Int      @default(0) @map("hit_count") @db.Integer
+  lastAccessedAt DateTime @default(now()) @map("last_accessed_at") @db.Timestamp()
+  
+  // Timestamps
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamp()
+  expiresAt      DateTime @map("expires_at") @db.Timestamp()
+  
+  @@index([expiresAt], name: "idx_crawl_cache_expires")
+  @@index([lastAccessedAt], name: "idx_crawl_cache_last_accessed")
+  
+  @@map("crawl_cache")
+}

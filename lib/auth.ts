@@ -13,16 +13,22 @@ export const authOptions: NextAuthOptions = {
     KeycloakProvider({
       clientId: process.env.KEYCLOAK_CLIENT_ID!,
       clientSecret: process.env.KEYCLOAK_CLIENT_SECRET!,
+      // 使用内部URL作为issuer（服务器端验证需要）
       issuer: `${keycloakInternalUrl}/realms/${keycloakRealm}`,
-      // 明确指定授权端点使用外部URL，让浏览器可以访问
+      // 明确指定授权端点使用外部URL（浏览器访问）
       authorization: {
         params: {
           scope: 'openid email profile',
+          // 关键：添加kc_idp_hint绕过issuer检查
+          kc_idp_hint: 'keycloak',
         },
         url: `${keycloakExternalUrl}/realms/${keycloakRealm}/protocol/openid-connect/auth`,
       },
+      // token和userinfo使用内部URL（容器间通信）
       token: `${keycloakInternalUrl}/realms/${keycloakRealm}/protocol/openid-connect/token`,
       userinfo: `${keycloakInternalUrl}/realms/${keycloakRealm}/protocol/openid-connect/userinfo`,
+      // 禁用wellKnown自动发现，手动指定端点
+      wellKnown: undefined,
     }),
   ],
   callbacks: {
